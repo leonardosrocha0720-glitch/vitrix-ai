@@ -3,25 +3,65 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-// Mapeia o nome do produto/oferta para a quantidade de créditos
-function getCreditsByPlan(offerName: string): number {
+const creditsVitalicio = () => parseInt(process.env.CREDITS_VITALICIO ?? "500", 10);
+const creditsMensalPro = () => parseInt(process.env.CREDITS_MENSAL_PRO ?? "100", 10);
+
+/**
+ * Decide quantos créditos a compra vale.
+ *
+ * ATENÇÃO: na ApplyFy os planos são OFERTAS de um mesmo produto, então
+ * `product.name` chega como "Vitrix AI" nas duas compras — o nome do produto
+ * sozinho não distingue Mensal PRO de Vitalício. A ordem abaixo vai do sinal
+ * mais confiável para o menos confiável.
+ */
+function getCreditsByPlan(offerName: string, offerCode: string, amount: number): number {
+  // 1) Código da oferta (exato e estável). Definir nas env vars quando conhecido.
+  const codeVitalicio = process.env.APLIFAY_OFFER_CODE_VITALICIO?.trim();
+  const codeMensal = process.env.APLIFAY_OFFER_CODE_MENSAL?.trim();
+
+  if (codeVitalicio && offerCode && offerCode === codeVitalicio) {
+    console.log(`[Aplifay Webhook] Plano por offerCode (${offerCode}): vitalício`);
+    return creditsVitalicio();
+  }
+  if (codeMensal && offerCode && offerCode === codeMensal) {
+    console.log(`[Aplifay Webhook] Plano por offerCode (${offerCode}): mensal`);
+    return creditsMensalPro();
+  }
+
+  // 2) Nome, quando ele de fato descreve o plano
   const lower = offerName.toLowerCase().trim();
-
-  if (lower.includes("vitalício") || lower.includes("vitalicio") || lower.includes("lifetime")) {
-    return parseInt(process.env.CREDITS_VITALICIO ?? "500", 10);
+  if (/vital[ií]cio|lifetime/.test(lower)) {
+    console.log(`[Aplifay Webhook] Plano por nome ("${offerName}"): vitalício`);
+    return creditsVitalicio();
+  }
+  if (/mensal|monthly|\bpro\b/.test(lower)) {
+    console.log(`[Aplifay Webhook] Plano por nome ("${offerName}"): mensal`);
+    return creditsMensalPro();
   }
 
-  if (lower.includes("mensal") || lower.includes("pro") || lower.includes("monthly")) {
-    return parseInt(process.env.CREDITS_MENSAL_PRO ?? "100", 10);
+  // 3) Valor pago. Acima do limiar tratamos como vitalício.
+  const limiar = parseInt(process.env.APLIFAY_VALOR_MIN_VITALICIO ?? "300", 10);
+  if (amount > 0) {
+    const plano = amount >= limiar ? "vitalício" : "mensal";
+    console.warn(
+      `[Aplifay Webhook] offerCode "${offerCode}" e nome "${offerName}" não identificaram o plano. ` +
+        `Decidido pelo valor R$ ${amount} (limiar ${limiar}): ${plano}.`,
+    );
+    return amount >= limiar ? creditsVitalicio() : creditsMensalPro();
   }
 
-  console.warn(`[Aplifay Webhook] Plano não reconhecido: "${offerName}". Usando CREDITS_MENSAL_PRO como fallback.`);
-  return parseInt(process.env.CREDITS_MENSAL_PRO ?? "100", 10);
+  console.error(
+    `[Aplifay Webhook] Plano indeterminado (offerCode "${offerCode}", nome "${offerName}", valor ${amount}). ` +
+      "Concedendo o menor plano. Configure APLIFAY_OFFER_CODE_VITALICIO e APLIFAY_OFFER_CODE_MENSAL.",
+  );
+  return creditsMensalPro();
 }
 
 type ParsedPayload = {
   email: string;
   offerName: string;
+  offerCode: string;
+  amount: number;
   status: string;
   event: string;
 };
@@ -54,13 +94,20 @@ function parseAplifayPayload(body: Record<string, unknown>): ParsedPayload | nul
     const product = orderItems[0]?.product as Record<string, unknown> | undefined;
     if (product?.name) offerName = String(product.name);
   }
-  // Sem nome de produto, o código da oferta ainda identifica o plano
-  if (!offerName && body.offerCode) offerName = String(body.offerCode);
+  const offerCode = body.offerCode ? String(body.offerCode) : "";
+
+  // Valor pago, usado para distinguir os planos quando nome/código não bastam
+  let amount = Number(transaction?.amount ?? 0);
+  if (!amount && Array.isArray(orderItems) && orderItems.length > 0) {
+    amount = Number(orderItems[0]?.price ?? 0);
+  }
+  if (!Number.isFinite(amount)) amount = 0;
 
   const status = String(transaction?.status ?? event);
 
-  if (email && offerName) {
-    return { email, offerName, status, event };
+  // offerCode sozinho já identifica a compra, mesmo sem nome de produto
+  if (email && (offerName || offerCode)) {
+    return { email, offerName: offerName || offerCode, offerCode, amount, status, event };
   }
 
   return null;
@@ -110,14 +157,14 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Payload não reconhecido" }, { status: 400 });
     }
 
-    const { email, offerName, status, event } = parsed;
+    const { email, offerName, offerCode, amount, status, event } = parsed;
 
     if (!isApproved(event, status)) {
       console.log(`[Aplifay Webhook] Evento "${event}" (status "${status}") ignorado para ${email}.`);
       return Response.json({ ok: true, message: `Evento "${event}" ignorado` });
     }
 
-    const credits = getCreditsByPlan(offerName);
+    const credits = getCreditsByPlan(offerName, offerCode, amount);
     const supabase = createAdminClient();
 
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
