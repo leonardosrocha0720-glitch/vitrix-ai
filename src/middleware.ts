@@ -29,7 +29,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rotas públicas: login, register, callback, /s/* (sites publicados)
-  const publicPaths = ["/login", "/register", "/auth/callback"];
+  // e /api/webhook/* — webhooks vêm de servidores externos, sem sessão Supabase.
+  // Esses endpoints fazem a própria autenticação via secret (APLIFAY_WEBHOOK_SECRET).
+  const publicPaths = ["/login", "/register", "/auth/callback", "/api/webhook/"];
   const isPublic = publicPaths.some((p) => pathname.startsWith(p)) || pathname.startsWith("/s/");
 
   if (!user && !isPublic) {
