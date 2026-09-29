@@ -20,23 +20,29 @@ export default function PaletteModal({ businessName, onSelect, onCancel }: Palet
       }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
     >
-      <div className="w-full max-w-2xl rounded-2xl border border-brand/20 bg-panel shadow-2xl shadow-black/40">
-        <div className="flex items-start justify-between border-b border-brand/10 px-6 py-4">
-          <div>
-            <h2 className="text-lg font-bold text-ink">Escolha o estilo visual</h2>
-            <p className="text-sm font-medium text-brand">{businessName}</p>
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl shadow-black/50">
+        <div className="flex items-start justify-between gap-4 border-b border-line-soft px-6 py-4">
+          <div className="min-w-0">
+            <h2 className="font-display text-[17px] font-bold tracking-[-0.01em] text-ink">
+              Escolha o estilo visual
+            </h2>
+            <p className="mt-0.5 truncate font-data text-[11.5px] uppercase tracking-[0.1em] text-brand-2">
+              {businessName}
+            </p>
           </div>
           <button
             type="button"
             onClick={onCancel}
             aria-label="Fechar"
-            className="rounded-lg p-1.5 text-muted transition-colors hover:bg-white/5 hover:text-ink"
+            className="shrink-0 rounded-lg p-1.5 text-muted transition-colors hover:bg-white/5 hover:text-ink"
           >
-            ✕
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3.5 p-6 sm:grid-cols-3">
           {PALETTES.map((palette) => {
             const isSelected = selectedId === palette.id;
             return (
@@ -44,15 +50,17 @@ export default function PaletteModal({ businessName, onSelect, onCancel }: Palet
                 key={palette.id}
                 type="button"
                 onClick={() => setSelectedId(palette.id)}
-                className={`relative flex flex-col gap-3 rounded-xl border-2 bg-panel-2 p-4 text-left transition-all ${
+                className={`relative flex flex-col gap-3 rounded-xl border bg-[#0a0a12] p-4 text-left transition-all ${
                   isSelected
-                    ? "border-brand"
-                    : "border-white/5 hover:scale-[1.03] hover:border-brand/50"
+                    ? "border-brand shadow-[0_0_0_1px_var(--color-brand),0_0_24px_-8px_var(--color-brand)]"
+                    : "border-line hover:-translate-y-px hover:border-brand/50"
                 }`}
               >
                 {isSelected && (
-                  <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[10px] text-white">
-                    ✓
+                  <span className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-brand text-white">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
                   </span>
                 )}
                 <div className="flex items-center gap-2">
@@ -69,20 +77,23 @@ export default function PaletteModal({ businessName, onSelect, onCancel }: Palet
                     style={{ backgroundColor: palette.bg }}
                   />
                 </div>
-                <span className="text-sm font-semibold text-ink">{palette.name}</span>
+                <span className="text-[13px] font-semibold text-ink">{palette.name}</span>
               </button>
             );
           })}
         </div>
 
-        <div className="flex justify-end border-t border-brand/10 px-6 py-4">
+        <div className="flex justify-end border-t border-line-soft px-6 py-4">
           <button
             type="button"
             disabled={!selected}
             onClick={() => selected && onSelect(selected)}
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand to-brand-hover px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:scale-100"
+            className="inline-flex items-center gap-2 rounded-[10px] bg-gradient-to-br from-brand-2 via-brand to-[#6d28d9] px-5 py-2.5 font-display text-[13.5px] font-bold text-white shadow-[0_12px_26px_-12px_rgba(139,92,246,1)] transition-all hover:-translate-y-px hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0 disabled:hover:brightness-100"
           >
-            Gerar com este estilo →
+            Gerar com este estilo
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
           </button>
         </div>
       </div>

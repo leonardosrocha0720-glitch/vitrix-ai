@@ -43,9 +43,6 @@ export default function SitePreviewModal({
         body: JSON.stringify({ htmlContent: html, businessName }),
       });
       const data = await res.json();
-      if (res.status === 402) {
-        throw new Error("Créditos insuficientes. Compre mais créditos na aba Conta.");
-      }
       if (!res.ok) throw new Error(data.error || "Erro ao publicar o site.");
       setPublishedUrl(data.url);
     } catch (err) {
@@ -57,9 +54,13 @@ export default function SitePreviewModal({
 
   async function handleCopyUrl() {
     if (!publishedUrl) return;
-    await navigator.clipboard.writeText(publishedUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(publishedUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setPublishError("Não foi possível copiar. Selecione o link e copie manualmente.");
+    }
   }
 
   useEffect(() => {
@@ -84,65 +85,97 @@ export default function SitePreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-md">
-      <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-brand/15 bg-panel px-5">
-        <div className="flex items-center gap-2">
-          <span className="text-lg text-brand">⚡</span>
-          <span className="text-sm font-bold text-ink">
-            Vitrix<span className="text-brand">AI</span>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg bg-gradient-to-br from-brand-2 via-brand to-[#5b2bb8]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+              <path d="M3 11l18-8-8 18-2-8-8-2z" />
+            </svg>
+          </span>
+          <span className="font-display text-[14px] font-extrabold tracking-[-0.015em] text-ink">
+            Vitrix{" "}
+            <span className="bg-gradient-to-r from-brand-2 to-brand bg-clip-text text-transparent">
+              AI
+            </span>
           </span>
         </div>
 
-        <div className="hidden flex-col items-center sm:flex">
-          <h2 className="text-sm font-bold text-ink">{businessName}</h2>
-          {paletteName && <span className="text-xs text-brand">{paletteName}</span>}
+        <div className="hidden min-w-0 flex-col items-center sm:flex">
+          <h2 className="truncate font-display text-[14px] font-bold text-ink">{businessName}</h2>
+          {paletteName && (
+            <span className="font-data text-[10px] uppercase tracking-[0.12em] text-brand-2">
+              {paletteName}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handlePublish}
             disabled={!html || publishing || Boolean(publishedUrl)}
-            className="inline-flex items-center gap-2 rounded-lg border border-brand/40 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/20 disabled:cursor-not-allowed disabled:opacity-30"
+            className="inline-flex items-center gap-2 rounded-[10px] border border-signal/30 bg-signal/10 px-3.5 py-2 text-[12.5px] font-semibold text-signal transition-all hover:bg-signal/20 disabled:cursor-not-allowed disabled:border-line-soft disabled:bg-transparent disabled:text-muted/50"
           >
-            {publishing ? "Publicando..." : "🌐 Publicar Site"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3a15 15 0 010 18 15 15 0 010-18z" />
+            </svg>
+            {publishing ? "Publicando..." : publishedUrl ? "Publicado" : "Publicar"}
           </button>
           <button
             onClick={onDownload}
             disabled={!html}
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand to-brand-hover px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:scale-100"
+            className="inline-flex items-center gap-2 rounded-[10px] bg-gradient-to-br from-brand-2 via-brand to-[#6d28d9] px-3.5 py-2 text-[12.5px] font-semibold text-white shadow-[0_10px_22px_-12px_rgba(139,92,246,1)] transition-all hover:-translate-y-px hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0"
           >
-            📥 Baixar HTML
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+              <path d="M12 3v12" />
+              <path d="M7 11l5 5 5-5" />
+              <path d="M4 21h16" />
+            </svg>
+            Baixar HTML
           </button>
           <button
             onClick={onClose}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-ink"
+            aria-label="Fechar preview"
+            className="grid h-9 w-9 place-items-center rounded-[10px] border border-line text-muted transition-colors hover:bg-white/5 hover:text-ink"
           >
-            ✕ Fechar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
       </div>
 
       {publishError && (
-        <div className="shrink-0 border-b border-red-500/20 bg-red-500/10 px-5 py-3 text-sm text-red-300">
-          ⚠ {publishError}
+        <div className="flex shrink-0 items-start gap-2.5 border-b border-red-500/20 bg-red-500/10 px-5 py-3 text-[13px] text-red-300">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mt-px h-4 w-4 shrink-0">
+            <path d="M12 8v5M12 16.5v.5" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+          {publishError}
         </div>
       )}
 
       {publishedUrl && (
-        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-success/20 bg-success/10 px-5 py-3 text-sm">
-          <span className="font-semibold text-success">✓ Site publicado!</span>
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-signal/20 bg-signal/10 px-5 py-3 text-[13px]">
+          <span className="inline-flex items-center gap-2 font-semibold text-signal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+            Site publicado
+          </span>
           <a
             href={publishedUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="truncate text-brand underline hover:text-ink"
+            className="min-w-0 flex-1 truncate font-data text-[12px] text-brand-2 underline transition-colors hover:text-ink"
           >
             {publishedUrl}
           </a>
           <button
             onClick={handleCopyUrl}
-            className="rounded-lg border border-white/10 px-3 py-1 text-xs font-medium text-muted transition-colors hover:text-ink"
+            className="shrink-0 rounded-lg border border-line px-3 py-1 font-data text-[11px] text-muted transition-colors hover:text-ink"
           >
-            {copied ? "Copiado!" : "Copiar link"}
+            {copied ? "Copiado" : "Copiar link"}
           </button>
         </div>
       )}
@@ -156,18 +189,27 @@ export default function SitePreviewModal({
             sandbox="allow-scripts allow-same-origin"
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-4">
-            <span className="animate-pulse text-4xl text-brand">⚡</span>
-            <p key={messageIndex} className="animate-fade-in-up text-sm font-medium text-muted">
+          <div className="flex h-full flex-col items-center justify-center gap-5">
+            <span className="relative grid h-16 w-16 place-items-center">
+              <span
+                aria-hidden
+                className="radar-ping absolute inset-0 rounded-full border border-brand/40"
+              />
+              <span
+                aria-hidden
+                className="radar-sweep radar-sweep-lg relative h-12 w-12 overflow-hidden rounded-full border border-brand/40"
+              />
+            </span>
+            <p key={messageIndex} className="animate-fade-in-up font-display text-[14px] font-bold text-ink">
               {LOADING_MESSAGES[messageIndex]}
             </p>
           </div>
         )}
       </div>
 
-      <div className="flex h-10 shrink-0 items-center justify-between border-t border-brand/10 bg-panel px-5 text-xs text-muted">
-        <span>{generationSeconds ? `Site gerado em ${generationSeconds}s` : "Gerando..."}</span>
-        <span>Powered by Claude AI</span>
+      <div className="flex h-10 shrink-0 items-center justify-between border-t border-line bg-surface px-5 font-data text-[10.5px] uppercase tracking-[0.12em] text-muted">
+        <span>{generationSeconds ? `Gerado em ${generationSeconds}s` : "Gerando..."}</span>
+        <span>Vitrix AI</span>
       </div>
     </div>
   );

@@ -76,46 +76,93 @@ export default function ClientesPage() {
     }
   }, []);
 
-  const withoutSite = results.filter((b) => !b.website).length;
+  const scan =
+    status === "loading"
+      ? { label: "Varrendo a cidade", tone: "brand" as const }
+      : status === "done"
+        ? { label: "Varredura concluída", tone: "signal" as const }
+        : { label: "Aguardando busca", tone: "muted" as const };
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 pt-20 lg:flex-row lg:p-8">
-      <aside className="w-full shrink-0 lg:sticky lg:top-8 lg:h-fit lg:w-[280px]">
-        <SearchForm onSubmit={handleSearch} isLoading={status === "loading"} />
-      </aside>
+    <div className="flex min-h-screen flex-col">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4 pl-16 lg:px-6 lg:pl-6">
+        <div className="min-w-0">
+          <h1 className="font-display text-[21px] font-bold tracking-[-0.02em] text-ink text-balance">
+            Procurar Clientes
+          </h1>
+          <p className="mt-0.5 text-[13px] text-muted">
+            Negócios locais sem site — os que mais convertem
+          </p>
+        </div>
 
-      <div className="min-w-0 flex-1">
-        {status === "idle" && (
-          <div className="flex h-[480px] flex-col items-center justify-center rounded-2xl border border-brand/10 bg-panel/40 text-center">
-            <span className="text-5xl">🔭</span>
-            <p className="mt-4 text-lg font-semibold text-ink">Faça uma busca para começar</p>
-            <p className="mt-1 max-w-sm px-6 text-sm text-muted">
-              Preencha o nicho e a cidade na barra lateral pra encontrar negócios locais e
-              identificar quem ainda não tem site.
-            </p>
-          </div>
-        )}
+        <span
+          className={`inline-flex items-center gap-2.5 rounded-full border py-[7px] pl-[9px] pr-[13px] font-data text-[10.5px] uppercase tracking-[0.1em] ${
+            scan.tone === "signal"
+              ? "border-signal/[0.28] bg-signal/[0.07] text-signal"
+              : scan.tone === "brand"
+                ? "border-brand/30 bg-brand/[0.08] text-brand-2"
+                : "border-line bg-white/[0.02] text-muted"
+          }`}
+        >
+          <span
+            className={`relative h-[15px] w-[15px] shrink-0 overflow-hidden rounded-full border ${
+              scan.tone === "signal"
+                ? "radar-sweep border-signal/40"
+                : scan.tone === "brand"
+                  ? "radar-sweep radar-sweep-lg border-brand/40"
+                  : "border-line"
+            }`}
+          />
+          {scan.label}
+        </span>
+      </header>
 
-        {status === "loading" && (
-          <LoadingProgress messages={progressLog} percent={progressPercent} />
-        )}
+      <div className="grid gap-[22px] px-5 pb-14 pt-6 lg:grid-cols-[322px_minmax(0,1fr)] lg:items-start lg:px-6">
+        <aside className="w-full min-w-0 lg:sticky lg:top-6">
+          <SearchForm onSubmit={handleSearch} isLoading={status === "loading"} />
+        </aside>
 
-        {status === "error" && (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">
-            {errorMessage}
-          </div>
-        )}
-
-        {status === "done" && (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-semibold text-ink">{results.length} negócios encontrados</span>
-              <span className="text-brand">—</span>
-              <span className="font-semibold text-success">{withoutSite} sem site</span>
+        <div className="min-w-0">
+          {status === "idle" && (
+            <div className="flex h-[460px] flex-col items-center justify-center rounded-2xl border border-line bg-surface/40 px-6 text-center">
+              <span className="relative grid h-20 w-20 place-items-center">
+                <span
+                  aria-hidden
+                  className="radar-ping absolute inset-0 rounded-full border border-brand/40"
+                />
+                <span
+                  aria-hidden
+                  className="radar-sweep radar-sweep-lg relative h-14 w-14 overflow-hidden rounded-full border border-brand/30"
+                />
+              </span>
+              <p className="mt-5 font-display text-[17px] font-bold text-ink">
+                Faça uma busca para começar
+              </p>
+              <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">
+                Preencha o nicho e a cidade ao lado. A varredura devolve os negócios da região e
+                marca quem ainda não tem site.
+              </p>
             </div>
+          )}
+
+          {status === "loading" && (
+            <LoadingProgress messages={progressLog} percent={progressPercent} />
+          )}
+
+          {status === "error" && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-[13px] text-red-300">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mt-px h-4 w-4 shrink-0">
+                <path d="M12 8v5M12 16.5v.5" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              {errorMessage}
+            </div>
+          )}
+
+          {status === "done" && (
             <ResultsTable results={results} searchNiche={searchNiche} searchCity={searchCity} />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

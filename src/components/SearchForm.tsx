@@ -29,13 +29,15 @@ const SITE_FILTER_OPTIONS: { value: SiteFilter; label: string }[] = [
 const RESULT_OPTIONS = [10, 20, 30, 50];
 
 const TIPS = [
-  "Combine nicho + cidade específica para achar leads mais qualificados.",
-  "Negócios com poucas avaliações e sem site costumam ser os mais fáceis de converter.",
-  "Use os filtros avançados pra refinar por nota e número de avaliações.",
+  "Nota alta com poucas avaliações indica negócio bom e pouco visível — o argumento de venda já vem pronto.",
+  "Sem site e com WhatsApp é o par ideal: dá pra mandar o preview no mesmo dia.",
+  "Cidade específica rende mais que região ampla. O dono reconhece a rua no site gerado.",
 ];
 
+const labelClass = "font-data text-[9.5px] uppercase tracking-[0.14em] text-muted";
+
 const inputClass =
-  "w-full rounded-lg border border-brand/15 bg-panel-2 px-3 py-2.5 text-sm text-ink placeholder:text-muted/50 outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20";
+  "w-full rounded-[10px] border border-line bg-[#0a0a12] px-3 py-2.5 text-[13.5px] text-ink outline-none transition-all placeholder:text-[#565270] focus:border-brand/60 focus:ring-[3px] focus:ring-brand/15";
 
 export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
   const [values, setValues] = useState<SearchFormValues>(DEFAULT_VALUES);
@@ -52,157 +54,180 @@ export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-5 rounded-2xl border border-brand/15 bg-panel p-5 shadow-lg shadow-black/20"
+      className="rounded-2xl border border-line bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_20px_44px_-34px_#000]"
     >
-      <div className="flex items-center gap-2">
-        <span className="text-lg">🔍</span>
-        <h2 className="text-base font-bold text-ink">Nova Prospecção</h2>
+      <div className="flex items-center gap-2.5 border-b border-line-soft px-[18px] pb-3.5 pt-4">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-brand-2">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.2-3.2" />
+        </svg>
+        <h2 className="font-display text-[14px] font-bold tracking-[-0.005em] text-ink">
+          Nova prospecção
+        </h2>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="niche" className="text-xs font-medium text-muted">
-          Nicho de negócio
-        </label>
-        <input
-          id="niche"
-          type="text"
-          required
-          placeholder="Ex: dentista, restaurante..."
-          value={values.niche}
-          onChange={(e) => setValues((v) => ({ ...v, niche: e.target.value }))}
-          className={inputClass}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="city" className="text-xs font-medium text-muted">
-          Cidade
-        </label>
-        <input
-          id="city"
-          type="text"
-          required
-          placeholder="Ex: Ribeirão Preto"
-          value={values.city}
-          onChange={(e) => setValues((v) => ({ ...v, city: e.target.value }))}
-          className={inputClass}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="state" className="text-xs font-medium text-muted">
-          Estado (opcional)
-        </label>
-        <input
-          id="state"
-          type="text"
-          placeholder="Ex: SP"
-          value={values.state}
-          onChange={(e) => setValues((v) => ({ ...v, state: e.target.value }))}
-          className={inputClass}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="maxResults" className="text-xs font-medium text-muted">
-          Quantidade de resultados
-        </label>
-        <select
-          id="maxResults"
-          value={values.maxResults}
-          onChange={(e) => setValues((v) => ({ ...v, maxResults: Number(e.target.value) }))}
-          className={inputClass}
-        >
-          {RESULT_OPTIONS.map((n) => (
-            <option key={n} value={n} className="bg-panel-2 text-ink">
-              {n} resultados
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setShowAdvanced((s) => !s)}
-        className="flex items-center justify-between text-xs font-medium text-muted transition-colors hover:text-ink"
-      >
-        Filtros avançados
-        <span className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`}>▾</span>
-      </button>
-
-      {showAdvanced && (
-        <div className="flex flex-col gap-4 rounded-xl border border-brand/10 bg-panel-2/60 p-3">
-          <RatingRangeSlider
-            min={values.minRating}
-            max={values.maxRating}
-            onChange={(minRating, maxRating) => setValues((v) => ({ ...v, minRating, maxRating }))}
+      <div className="grid gap-3.5 px-[18px] pb-[18px] pt-4">
+        <div className="grid gap-1.5">
+          <label htmlFor="niche" className={labelClass}>
+            Nicho de negócio
+          </label>
+          <input
+            id="niche"
+            type="text"
+            required
+            placeholder="dentista, barbearia, pizzaria..."
+            value={values.niche}
+            onChange={(e) => setValues((v) => ({ ...v, niche: e.target.value }))}
+            className={inputClass}
           />
+        </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="minReviews" className="text-xs font-medium text-muted">
-              Número mínimo de avaliações
+        <div className="grid grid-cols-[1fr_92px] gap-2.5">
+          <div className="grid gap-1.5">
+            <label htmlFor="city" className={labelClass}>
+              Cidade
             </label>
             <input
-              id="minReviews"
-              type="number"
-              min={0}
-              value={values.minReviews}
-              onChange={(e) =>
-                setValues((v) => ({ ...v, minReviews: Math.max(0, Number(e.target.value)) }))
-              }
-              className="w-full rounded-lg border border-brand/15 bg-panel px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              id="city"
+              type="text"
+              required
+              placeholder="Guarapuava"
+              value={values.city}
+              onChange={(e) => setValues((v) => ({ ...v, city: e.target.value }))}
+              className={inputClass}
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-muted">Filtrar por site</span>
-            <div className="inline-flex rounded-lg border border-brand/15 bg-panel p-1">
-              {SITE_FILTER_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setValues((v) => ({ ...v, siteFilter: opt.value }))}
-                  className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                    values.siteFilter === opt.value
-                      ? "bg-brand text-white"
-                      : "text-muted hover:text-ink"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="state" className={labelClass}>
+              UF
+            </label>
+            <input
+              id="state"
+              type="text"
+              placeholder="PR"
+              value={values.state}
+              onChange={(e) => setValues((v) => ({ ...v, state: e.target.value }))}
+              className={inputClass}
+            />
           </div>
         </div>
-      )}
 
-      <button
-        type="submit"
-        disabled={!canSubmit || isLoading}
-        className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-hover px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-      >
-        {isLoading ? (
-          <>
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-            Buscando negócios...
-          </>
-        ) : (
-          <>🚀 Iniciar Prospecção</>
+        <div className="grid gap-1.5">
+          <label htmlFor="maxResults" className={labelClass}>
+            Resultados
+          </label>
+          <select
+            id="maxResults"
+            value={values.maxResults}
+            onChange={(e) => setValues((v) => ({ ...v, maxResults: Number(e.target.value) }))}
+            className={inputClass}
+          >
+            {RESULT_OPTIONS.map((n) => (
+              <option key={n} value={n} className="bg-surface-2 text-ink">
+                {n} resultados
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((s) => !s)}
+          className="flex items-center justify-between font-data text-[9.5px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
+        >
+          Filtros avançados
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+
+        {showAdvanced && (
+          <div className="grid gap-4 rounded-xl border border-line-soft bg-[#0a0a12] p-3">
+            <RatingRangeSlider
+              min={values.minRating}
+              max={values.maxRating}
+              onChange={(minRating, maxRating) => setValues((v) => ({ ...v, minRating, maxRating }))}
+            />
+
+            <div className="grid gap-1.5">
+              <label htmlFor="minReviews" className={labelClass}>
+                Mínimo de avaliações
+              </label>
+              <input
+                id="minReviews"
+                type="number"
+                min={0}
+                value={values.minReviews}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, minReviews: Math.max(0, Number(e.target.value)) }))
+                }
+                className={`${inputClass} font-data tabular-nums`}
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <span className={labelClass}>Filtrar por site</span>
+              <div className="inline-flex rounded-[10px] border border-line bg-surface p-1">
+                {SITE_FILTER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setValues((v) => ({ ...v, siteFilter: opt.value }))}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-all ${
+                      values.siteFilter === opt.value
+                        ? "bg-gradient-to-br from-brand-2 to-brand text-white shadow-[0_6px_14px_-8px_rgba(139,92,246,1)]"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
-      </button>
 
-      <div className="h-px bg-brand/10" />
+        <button
+          type="submit"
+          disabled={!canSubmit || isLoading}
+          className="mt-1 flex w-full items-center justify-center gap-2.5 rounded-[11px] bg-gradient-to-br from-brand-2 via-brand to-[#6d28d9] px-4 py-3 font-display text-[13.5px] font-bold tracking-[0.01em] text-white shadow-[0_0_0_1px_rgba(192,132,252,0.3),0_12px_26px_-12px_rgba(139,92,246,1)] transition-all hover:-translate-y-px hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(192,132,252,0.5),0_18px_34px_-14px_rgba(139,92,246,1)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:brightness-100"
+        >
+          {isLoading ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              Varrendo a cidade...
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M12 19V5" />
+                <path d="M5 12l7-7 7 7" />
+              </svg>
+              Iniciar prospecção
+            </>
+          )}
+        </button>
 
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold text-muted">Dicas rápidas</p>
-        <ul className="flex flex-col gap-1.5">
+        <div className="grid gap-2 border-t border-line-soft pt-3">
+          <p className="font-data text-[9.5px] uppercase tracking-[0.14em] text-muted">
+            Leitura rápida
+          </p>
           {TIPS.map((tip) => (
-            <li key={tip} className="flex gap-1.5 text-xs leading-relaxed text-muted/80">
-              <span className="text-brand">•</span>
+            <p key={tip} className="flex gap-2 text-[12.5px] leading-[1.55] text-ink-2">
+              <span aria-hidden className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-brand" />
               {tip}
-            </li>
+            </p>
           ))}
-        </ul>
+        </div>
       </div>
     </form>
   );

@@ -13,27 +13,32 @@ interface ResultsTableProps {
   searchCity?: string;
 }
 
-type SortKey = "name" | "address" | "rating" | "website";
+type SortKey = "name" | "rating" | "website";
 type SortDirection = "asc" | "desc";
 
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: "name", label: "Negócio" },
-  { key: "address", label: "Endereço" },
   { key: "rating", label: "Avaliação" },
-  { key: "website", label: "Status" },
 ];
 
-function StarRating({ rating }: { rating: number | null }) {
+function StarRating({ rating, reviews }: { rating: number | null; reviews: number | null }) {
   if (rating === null) return <span className="text-muted">—</span>;
-  const filled = Math.round(rating);
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="tracking-tight text-amber-400">
-        {"★".repeat(filled)}
-        <span className="text-white/10">{"★".repeat(5 - filled)}</span>
+    <>
+      <span className="flex items-center gap-1.5">
+        <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3 text-warn">
+          <path d="M12 2l3 6.5 7 .9-5 4.8 1.2 7L12 17.8 5.8 21.2 7 14.2 2 9.4l7-.9z" />
+        </svg>
+        <span className="font-data text-[12.5px] tabular-nums text-ink">
+          {rating.toFixed(1).replace(".", ",")}
+        </span>
       </span>
-      <span className="text-xs font-medium tabular-nums text-muted">{rating.toFixed(1)}</span>
-    </span>
+      {reviews !== null && reviews > 0 && (
+        <span className="mt-0.5 block font-data text-[11px] tabular-nums text-muted">
+          {reviews} avaliações
+        </span>
+      )}
+    </>
   );
 }
 
@@ -77,7 +82,6 @@ export default function ResultsTable({
       let cmp = 0;
       switch (sortKey) {
         case "name": cmp = a.name.localeCompare(b.name); break;
-        case "address": cmp = a.address.localeCompare(b.address); break;
         case "rating": cmp = (a.rating ?? 0) - (b.rating ?? 0); break;
         case "website": cmp = Number(Boolean(a.website)) - Number(Boolean(b.website)); break;
       }
@@ -87,9 +91,26 @@ export default function ResultsTable({
     return sorted;
   }, [results, query, sortKey, sortDirection]);
 
+  const noSiteCount = useMemo(
+    () => filteredAndSorted.filter((b) => !b.website).length,
+    [filteredAndSorted],
+  );
+
   const sortIndicator = (key: SortKey) => {
     if (key !== sortKey) return null;
-    return <span className="ml-1 text-brand">{sortDirection === "asc" ? "▲" : "▼"}</span>;
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={`ml-1 inline-block h-3 w-3 text-brand-2 ${sortDirection === "asc" ? "rotate-180" : ""}`}
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    );
   };
 
   const handleGenerateSite = async (business: Business, palette: ColorPalette) => {
@@ -117,7 +138,7 @@ export default function ResultsTable({
       });
       const data = await res.json();
       if (res.status === 402) {
-        throw new Error("Créditos insuficientes. Compre mais créditos na aba Conta.");
+        throw new Error("Créditos insuficientes. Veja seu saldo na aba Conta.");
       }
       if (data.error) throw new Error(data.error);
       setPreviewHtml(data.html);
@@ -166,6 +187,9 @@ export default function ResultsTable({
     URL.revokeObjectURL(url);
   };
 
+  const thClass =
+    "select-none whitespace-nowrap border-b border-line-soft px-4 py-2.5 text-left font-data text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted";
+
   return (
     <>
       {previewBusiness && (
@@ -187,48 +211,74 @@ export default function ResultsTable({
         />
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-brand/15 bg-panel shadow-lg shadow-black/20">
-        <div className="flex flex-col gap-3 border-b border-brand/10 bg-panel-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <input
-            type="text"
-            placeholder="Buscar por nome ou endereço..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full max-w-sm rounded-lg border border-brand/15 bg-panel px-3 py-2 text-sm text-ink placeholder:text-muted/50 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-          />
-          <button
-            type="button"
-            onClick={() => exportBusinessesToExcel(filteredAndSorted)}
-            disabled={filteredAndSorted.length === 0}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            Exportar Excel
-          </button>
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface">
+        <div className="flex flex-col gap-3 border-b border-line-soft px-[18px] py-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-1">
+            <h3 className="font-display text-[14px] font-bold text-ink">Resultados</h3>
+            <span className="font-data text-[11.5px] text-muted">
+              {filteredAndSorted.length} encontrados ·{" "}
+              <b className="font-bold text-signal">{noSiteCount} sem site</b>
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+            <input
+              type="text"
+              placeholder="Filtrar por nome ou endereço..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full rounded-[10px] border border-line bg-[#0a0a12] px-3 py-2 text-[13px] text-ink outline-none transition-all placeholder:text-[#565270] focus:border-brand/60 focus:ring-[3px] focus:ring-brand/15 sm:w-56"
+            />
+            <button
+              type="button"
+              onClick={() => exportBusinessesToExcel(filteredAndSorted)}
+              disabled={filteredAndSorted.length === 0}
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-signal/30 bg-signal/10 px-3.5 py-2 text-[12.5px] font-semibold text-signal transition-all hover:bg-signal/20 disabled:cursor-not-allowed disabled:border-line-soft disabled:bg-transparent disabled:text-muted/50"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                <path d="M12 3v12" />
+                <path d="M7 11l5 5 5-5" />
+                <path d="M4 21h16" />
+              </svg>
+              Exportar
+            </button>
+          </div>
         </div>
 
         {genError && (
-          <div className="border-b border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
-            ⚠ {genError}
+          <div className="flex items-start gap-2.5 border-b border-red-500/20 bg-red-500/5 px-[18px] py-3 text-[13px] text-red-300">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mt-px h-4 w-4 shrink-0">
+              <path d="M12 8v5M12 16.5v.5" />
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+            {genError}
           </div>
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-left text-sm">
+          <table className="w-full min-w-[760px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-brand/10 bg-panel-2 text-xs uppercase tracking-wide text-muted">
-                <th className="w-12 px-4 py-3">#</th>
+              <tr>
+                <th className={`${thClass} w-10`}>#</th>
                 {COLUMNS.map((col) => (
                   <th
                     key={col.key}
                     onClick={() => handleSort(col.key)}
-                    className="cursor-pointer select-none px-4 py-3 hover:text-ink"
+                    className={`${thClass} cursor-pointer transition-colors hover:text-ink`}
                   >
                     {col.label}
                     {sortIndicator(col.key)}
                   </th>
                 ))}
-                <th className="px-4 py-3">Telefone</th>
-                <th className="px-4 py-3">Ação</th>
+                <th className={thClass}>Contato</th>
+                <th
+                  onClick={() => handleSort("website")}
+                  className={`${thClass} cursor-pointer transition-colors hover:text-ink`}
+                >
+                  Site
+                  {sortIndicator("website")}
+                </th>
+                <th className={thClass} />
               </tr>
             </thead>
             <tbody>
@@ -238,63 +288,69 @@ export default function ResultsTable({
                 return (
                   <tr
                     key={b.id}
-                    className={`animate-fade-in-up border-b border-brand/5 transition-colors last:border-0 ${
-                      index % 2 === 0 ? "bg-panel" : "bg-panel-3"
-                    } ${
-                      isGeneratingThis
-                        ? "shimmer-row"
-                        : "hover:border-l-2 hover:border-l-brand hover:bg-brand/5"
+                    className={`animate-fade-in-up border-b border-line-soft transition-colors last:border-0 ${
+                      isGeneratingThis ? "shimmer-row" : "hover:bg-brand/[0.05]"
                     } ${isDimmed ? "pointer-events-none opacity-40" : ""}`}
                     style={{ animationDelay: `${Math.min(index, 20) * 40}ms` }}
                   >
-                    <td className="px-4 py-3 tabular-nums text-muted">{index + 1}</td>
-                    <td className="px-4 py-3 font-medium text-ink">
+                    <td className="px-4 py-3.5 font-data text-[11px] tabular-nums text-muted">
+                      {index + 1}
+                    </td>
+
+                    <td className="px-4 py-3.5">
                       <a
                         href={b.mapsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         title="Ver no Google Maps"
-                        className="hover:text-brand hover:underline"
+                        className="text-[13.5px] font-semibold tracking-[-0.005em] text-ink transition-colors hover:text-brand-2"
                       >
                         {b.name}
                       </a>
+                      <div className="mt-0.5 text-[11.5px] text-muted">{b.address}</div>
                     </td>
-                    <td className="px-4 py-3 text-muted">{b.address}</td>
-                    <td className="px-4 py-3">
-                      <StarRating rating={b.rating} />
+
+                    <td className="px-4 py-3.5">
+                      <StarRating rating={b.rating} reviews={b.reviewCount ?? null} />
                     </td>
-                    <td className="px-4 py-3">
+
+                    <td className="px-4 py-3.5">
+                      {b.phone ? (
+                        <a
+                          href={`tel:${b.phone}`}
+                          className="font-data text-[12.5px] tabular-nums text-ink-2 transition-colors hover:text-ink"
+                        >
+                          {b.phone}
+                        </a>
+                      ) : (
+                        <span className="font-data text-[12.5px] text-muted/50">—</span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3.5">
                       {b.website ? (
                         <a
                           href={b.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:text-ink"
+                          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-white/[0.035] px-2.5 py-1 font-data text-[9.5px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-ink"
                         >
-                          <span className="h-1.5 w-1.5 rounded-full bg-muted" />
+                          <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-[#4d4a63]" />
                           Tem site
                         </a>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-                          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-signal/25 bg-signal/[0.09] px-2.5 py-1 font-data text-[9.5px] uppercase tracking-[0.1em] text-signal">
+                          <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-signal shadow-[0_0_7px_var(--color-signal)]" />
                           Sem site
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      {b.phone ? (
-                        <a href={`tel:${b.phone}`} className="text-muted hover:text-ink hover:underline">
-                          {b.phone}
-                        </a>
-                      ) : (
-                        <span className="text-muted/50">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
+
+                    <td className="px-4 py-3.5">
                       <button
                         onClick={() => handleOpenPaletteModal(b)}
                         disabled={generatingId !== null}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand to-brand-hover px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[9px] border border-brand/[0.34] bg-brand/[0.12] px-3.5 py-[7px] text-xs font-semibold text-brand-2 transition-all hover:bg-brand/[0.26] hover:text-white hover:shadow-[0_0_18px_-5px_rgba(139,92,246,0.9)] disabled:cursor-not-allowed disabled:border-line-soft disabled:bg-transparent disabled:text-muted/50 disabled:shadow-none"
                       >
                         {isGeneratingThis ? (
                           <>
@@ -302,10 +358,16 @@ export default function ResultsTable({
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                             </svg>
-                            Gerando...
+                            Gerando
                           </>
                         ) : (
-                          <>✨ Gerar Site</>
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                              <path d="M12 3l1.9 4.6 4.6 1.9-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
+                              <path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
+                            </svg>
+                            Gerar site
+                          </>
                         )}
                       </button>
                     </td>
@@ -316,8 +378,8 @@ export default function ResultsTable({
           </table>
 
           {filteredAndSorted.length === 0 && (
-            <p className="p-8 text-center text-sm text-muted">
-              Nenhum resultado encontrado para os filtros atuais.
+            <p className="px-6 py-10 text-center text-[13px] text-muted">
+              Nenhum resultado para os filtros atuais.
             </p>
           )}
         </div>

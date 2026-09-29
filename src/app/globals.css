@@ -2,25 +2,103 @@
 
 @theme inline {
   --font-sans: var(--font-inter);
+  --font-display: var(--font-archivo);
+  --font-data: var(--font-jetbrains);
 }
 
 @theme {
-  --color-base: #0a0a0f;
-  --color-panel: #111118;
-  --color-panel-2: #1a1a27;
+  /* Superfícies — base mais profunda, com viés violeta nos neutros */
+  --color-base: #08080d;
+  --color-surface: #0e0e17;
+  --color-surface-2: #151521;
+  --color-line: #231f38;
+  --color-line-soft: #1a1728;
+
+  /* Mantidos para telas ainda não migradas (login, cadastro, conta) */
+  --color-panel: #0e0e17;
+  --color-panel-2: #151521;
   --color-panel-3: #0f0f1a;
+
+  /* Texto */
+  --color-ink: #f4f3ff;
+  --color-ink-2: #c9c6e0;
+  --color-muted: #84809e;
+
+  /* Marca */
   --color-brand: #8b5cf6;
+  --color-brand-2: #c084fc;
   --color-brand-hover: #7c3aed;
-  --color-ink: #f8f8ff;
-  --color-muted: #94a3b8;
-  --color-success: #10b981;
+
+  /* Semânticas — verde-sinal marca a oportunidade ("sem site") */
+  --color-signal: #22d3a5;
+  --color-warn: #f5a524;
+  --color-success: #22d3a5;
 }
 
 body {
   background: var(--color-base);
   color: var(--color-ink);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ---------------------------------------------------------------
+   Ambiente: malha técnica + brilho violeta ancorado no topo esquerdo
+   --------------------------------------------------------------- */
+.ambient-grid {
+  background-image:
+    linear-gradient(var(--color-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-line-soft) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(120% 90% at 8% 0%, #000 0%, transparent 70%);
+  mask-image: radial-gradient(120% 90% at 8% 0%, #000 0%, transparent 70%);
+  opacity: 0.55;
+}
+
+.ambient-glow {
+  background: radial-gradient(closest-side, rgba(139, 92, 246, 0.2), transparent 72%);
+  filter: blur(8px);
+}
+
+/* ---------------------------------------------------------------
+   Radar de varredura — a ferramenta varre uma cidade atrás de sinal
+   --------------------------------------------------------------- */
+@keyframes radarSweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, rgba(34, 211, 165, 0.65), transparent 32%);
+  animation: radarSweep 2.6s linear infinite;
+}
+
+.radar-sweep-lg::after {
+  background: conic-gradient(from 0deg, rgba(139, 92, 246, 0.55), transparent 38%);
+  animation-duration: 2s;
+}
+
+@keyframes radarPing {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.radar-ping {
+  animation: radarPing 2s ease-out infinite;
+}
+
+/* --------------------------------------------------------------- */
 
 @keyframes fadeInUp {
   from {
@@ -61,10 +139,10 @@ body {
 @keyframes pulseDot {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 0 0 rgba(34, 211, 165, 0.5);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0);
+    box-shadow: 0 0 0 5px rgba(34, 211, 165, 0);
   }
 }
 
@@ -98,9 +176,9 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 9999px;
-  background: var(--color-brand);
-  border: 2px solid var(--color-ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  background: var(--color-brand-2);
+  border: 2px solid #0a0a12;
+  box-shadow: 0 0 0 1px rgba(192, 132, 252, 0.5), 0 0 12px -2px var(--color-brand);
   cursor: pointer;
 }
 
@@ -109,9 +187,9 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 9999px;
-  background: var(--color-brand);
-  border: 2px solid var(--color-ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  background: var(--color-brand-2);
+  border: 2px solid #0a0a12;
+  box-shadow: 0 0 0 1px rgba(192, 132, 252, 0.5), 0 0 12px -2px var(--color-brand);
   cursor: pointer;
 }
 
@@ -134,7 +212,7 @@ body {
   height: 4px;
   transform: translateY(-50%);
   border-radius: 9999px;
-  background: var(--color-panel-2);
+  background: var(--color-line);
   pointer-events: none;
 }
 
@@ -143,5 +221,15 @@ body {
   top: 0;
   height: 100%;
   border-radius: 9999px;
-  background: var(--color-brand);
+  background: linear-gradient(90deg, var(--color-brand), var(--color-brand-2));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
