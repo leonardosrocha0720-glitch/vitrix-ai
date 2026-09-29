@@ -1,5 +1,7 @@
 "use client";
 
+import Radar from "@/components/Radar";
+
 interface LoadingProgressProps {
   messages: string[];
   percent: number;
@@ -11,16 +13,7 @@ export default function LoadingProgress({ messages, percent }: LoadingProgressPr
   return (
     <div className="flex flex-col gap-5 rounded-2xl border border-line bg-surface p-6">
       <div className="flex items-center gap-4">
-        <span className="relative grid h-12 w-12 shrink-0 place-items-center">
-          <span
-            aria-hidden
-            className="radar-ping absolute inset-0 rounded-full border border-brand/40"
-          />
-          <span
-            aria-hidden
-            className="radar-sweep radar-sweep-lg relative h-9 w-9 overflow-hidden rounded-full border border-brand/40"
-          />
-        </span>
+        <Radar size="md" />
         <div className="min-w-0">
           <p className="font-display text-[14px] font-bold text-ink">{latest}</p>
           <p className="mt-0.5 font-data text-[10px] uppercase tracking-[0.14em] text-muted">

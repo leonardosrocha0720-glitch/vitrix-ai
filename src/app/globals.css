@@ -79,8 +79,8 @@ body {
 }
 
 .radar-sweep-lg::after {
-  background: conic-gradient(from 0deg, rgba(139, 92, 246, 0.55), transparent 38%);
-  animation-duration: 2s;
+  background: conic-gradient(from 0deg, rgba(192, 132, 252, 0.42), transparent 30%);
+  animation-duration: 2.2s;
 }
 
 @keyframes radarPing {

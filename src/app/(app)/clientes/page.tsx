@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import LoadingProgress from "@/components/LoadingProgress";
+import Radar from "@/components/Radar";
 import ResultsTable from "@/components/ResultsTable";
 import SearchForm from "@/components/SearchForm";
 import type { Business, SearchEvent, SearchFormValues } from "@/types/business";
@@ -125,16 +126,7 @@ export default function ClientesPage() {
         <div className="min-w-0">
           {status === "idle" && (
             <div className="flex h-[460px] flex-col items-center justify-center rounded-2xl border border-line bg-surface/40 px-6 text-center">
-              <span className="relative grid h-20 w-20 place-items-center">
-                <span
-                  aria-hidden
-                  className="radar-ping absolute inset-0 rounded-full border border-brand/40"
-                />
-                <span
-                  aria-hidden
-                  className="radar-sweep radar-sweep-lg relative h-14 w-14 overflow-hidden rounded-full border border-brand/30"
-                />
-              </span>
+              <Radar />
               <p className="mt-5 font-display text-[17px] font-bold text-ink">
                 Faça uma busca para começar
               </p>

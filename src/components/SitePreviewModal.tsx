@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Radar from "@/components/Radar";
 
 interface SitePreviewModalProps {
   html: string | null;
@@ -190,16 +191,7 @@ export default function SitePreviewModal({
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-5">
-            <span className="relative grid h-16 w-16 place-items-center">
-              <span
-                aria-hidden
-                className="radar-ping absolute inset-0 rounded-full border border-brand/40"
-              />
-              <span
-                aria-hidden
-                className="radar-sweep radar-sweep-lg relative h-12 w-12 overflow-hidden rounded-full border border-brand/40"
-              />
-            </span>
+            <Radar />
             <p key={messageIndex} className="animate-fade-in-up font-display text-[14px] font-bold text-ink">
               {LOADING_MESSAGES[messageIndex]}
             </p>
