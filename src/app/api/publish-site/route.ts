@@ -24,15 +24,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || profile.credits < 1) {
-    return NextResponse.json({ error: "Créditos insuficientes" }, { status: 402 });
-  }
+  // Publicar NAO consome credito: o custo real esta na geracao (API da Claude),
+  // e publicar e a acao que gera o link de venda. Tambem nao exigimos saldo,
+  // senao quem gerou o site e zerou os creditos ficaria sem conseguir publicar
+  // aquilo que ja pagou.
 
   const body = await req.json();
   const { htmlContent, businessName } = body;
@@ -57,11 +52,6 @@ export async function POST(req: NextRequest) {
   if (error) {
     return NextResponse.json({ error: "Erro ao publicar" }, { status: 500 });
   }
-
-  await supabase
-    .from("profiles")
-    .update({ credits: profile.credits - 1 })
-    .eq("id", user.id);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   return NextResponse.json({

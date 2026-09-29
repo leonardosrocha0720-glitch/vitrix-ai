@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ColorPalette } from "@/lib/palettes";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -75,13 +76,17 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", user.id)
-    .single();
+  // Debita ANTES de chamar a Claude. debitar_credito() verifica e desconta na
+  // mesma operacao no Postgres, entao cliques simultaneos nao conseguem gerar
+  // dois sites com um credito so. Se a geracao falhar, estornamos abaixo.
+  const { data: saldo, error: debitoError } = await supabase.rpc("debitar_credito");
 
-  if (!profile || profile.credits < 1) {
+  if (debitoError) {
+    console.error("[generate-site] Falha ao debitar credito:", debitoError);
+    return Response.json({ error: "Erro ao processar créditos" }, { status: 500 });
+  }
+
+  if (saldo === null) {
     return Response.json({ error: "Créditos insuficientes" }, { status: 402 });
   }
 
@@ -176,11 +181,6 @@ BOTÃO FLUTUANTE WhatsApp: fixed bottom-6 right-6, bg-green-500, rounded-full, p
     // Remove markdown code blocks caso o modelo os inclua
     html = html.replace(/^```[a-z]*\n?/i, "").replace(/```\s*$/i, "").trim();
 
-    await supabase
-      .from("profiles")
-      .update({ credits: profile.credits - 1 })
-      .eq("id", user.id);
-
     await supabase.from("generated_sites").insert({
       user_id: user.id,
       business_name: name,
@@ -191,6 +191,27 @@ BOTÃO FLUTUANTE WhatsApp: fixed bottom-6 right-6, bg-green-500, rounded-full, p
 
     return Response.json({ html });
   } catch (err) {
+    // A geracao falhou depois do debito: devolve o credito.
+    // Usa o service role de proposito — expor um "estornar" ao usuario
+    // autenticado seria um jeito trivial de gerar creditos do nada.
+    try {
+      const admin = createAdminClient();
+      const { data: p } = await admin
+        .from("profiles")
+        .select("credits")
+        .eq("id", user.id)
+        .single();
+      if (p) {
+        await admin
+          .from("profiles")
+          .update({ credits: p.credits + 1 })
+          .eq("id", user.id);
+      }
+      console.log(`[generate-site] Credito estornado para ${user.id} apos falha na geracao.`);
+    } catch (estornoErr) {
+      console.error("[generate-site] FALHA NO ESTORNO — usuario perdeu 1 credito:", user.id, estornoErr);
+    }
+
     const msg = err instanceof Error ? err.message : "Erro ao gerar site.";
     return Response.json({ error: msg }, { status: 500 });
   }

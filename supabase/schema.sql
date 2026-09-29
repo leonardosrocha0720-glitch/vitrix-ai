@@ -59,7 +59,10 @@ ALTER TABLE generated_sites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE published_sites ENABLE ROW LEVEL SECURITY;
 
 -- Políticas: usuário vê apenas seus próprios dados
-CREATE POLICY "profiles_own" ON profiles FOR ALL USING (auth.uid() = id);
+-- Somente leitura. Credito NUNCA e alterado pelo usuario: ver
+-- supabase/migrations/001_corrige_creditos.sql. FOR ALL aqui permitia o
+-- cliente setar os proprios creditos pela chave anon, que e publica.
+CREATE POLICY "profiles_select_own" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "sales_own" ON sales FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "generated_sites_own" ON generated_sites FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "published_sites_own" ON published_sites FOR ALL USING (auth.uid() = user_id);
