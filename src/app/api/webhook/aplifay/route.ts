@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-// Mapeia o nome da oferta para a variável de créditos correspondente
+// Mapeia o nome do produto/oferta para a quantidade de créditos
 function getCreditsByPlan(offerName: string): number {
   const lower = offerName.toLowerCase().trim();
 
@@ -15,131 +15,119 @@ function getCreditsByPlan(offerName: string): number {
     return parseInt(process.env.CREDITS_MENSAL_PRO ?? "100", 10);
   }
 
-  // Fallback: plano não reconhecido — loga e usa o menor plano
   console.warn(`[Aplifay Webhook] Plano não reconhecido: "${offerName}". Usando CREDITS_MENSAL_PRO como fallback.`);
   return parseInt(process.env.CREDITS_MENSAL_PRO ?? "100", 10);
 }
 
-// Extrai email e nome da oferta do payload da Aplifay
-// ATENÇÃO: ajuste aqui quando souber o formato real do webhook
-function parseAplifayPayload(body: Record<string, unknown>): { email: string; offerName: string; status: string } | null {
-  // Log completo do payload para debug (visível nos logs do Vercel)
-  console.log("[Aplifay Webhook] Payload recebido:", JSON.stringify(body, null, 2));
+type ParsedPayload = {
+  email: string;
+  offerName: string;
+  status: string;
+  event: string;
+};
 
-  // Tentativa 1: estrutura aninhada { data: { customer: { email }, product/offer: { name } } }
-  const data = body.data as Record<string, unknown> | undefined;
-  if (data) {
-    const customer = data.customer as Record<string, unknown> | undefined;
-    const product = (data.product ?? data.offer ?? data.plan) as Record<string, unknown> | undefined;
-    const status = (data.status ?? body.status ?? body.event ?? "") as string;
+/**
+ * Formato oficial do webhook ApplyFy — app.applyfy.com.br/docs/v1/webhooks/payment
+ *
+ * {
+ *   "event": "TRANSACTION_PAID",
+ *   "token": "<token de validação>",
+ *   "offerCode": "ABCK181",
+ *   "client":      { "name", "email", "phone", "cpf", ... },
+ *   "transaction": { "status", "orderItems": [ { "product": { "name" } } ], ... }
+ * }
+ */
+function parseAplifayPayload(body: Record<string, unknown>): ParsedPayload | null {
+  const event = String(body.event ?? "");
 
-    if (customer?.email && product?.name) {
-      return {
-        email: String(customer.email).toLowerCase().trim(),
-        offerName: String(product.name),
-        status: String(status),
-      };
-    }
+  const client = body.client as Record<string, unknown> | undefined;
+  const transaction = body.transaction as Record<string, unknown> | undefined;
+
+  // Email do comprador. body.email é só um fallback defensivo.
+  const rawEmail = (client?.email ?? body.email) as string | undefined;
+  const email = rawEmail ? String(rawEmail).toLowerCase().trim() : "";
+
+  // Nome do produto comprado (primeiro item do pedido)
+  let offerName = "";
+  const orderItems = transaction?.orderItems as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(orderItems) && orderItems.length > 0) {
+    const product = orderItems[0]?.product as Record<string, unknown> | undefined;
+    if (product?.name) offerName = String(product.name);
   }
+  // Sem nome de produto, o código da oferta ainda identifica o plano
+  if (!offerName && body.offerCode) offerName = String(body.offerCode);
 
-  // Tentativa 2: estrutura plana { email, offer_name / product_name / plan_name, status }
-  const email =
-    (body.email ?? body.customer_email ?? body.buyer_email) as string | undefined;
-  const offerName =
-    (body.offer_name ?? body.product_name ?? body.plan_name ?? body.plan ?? body.product) as string | undefined;
-  const status = (body.status ?? body.event ?? "") as string;
+  const status = String(transaction?.status ?? event);
 
   if (email && offerName) {
-    return {
-      email: String(email).toLowerCase().trim(),
-      offerName: String(offerName),
-      status: String(status),
-    };
-  }
-
-  // Tentativa 3: estrutura da Aplifay com "compra" ou "transaction"
-  const compra = (body.compra ?? body.transaction ?? body.purchase) as Record<string, unknown> | undefined;
-  if (compra) {
-    const emailVal = (compra.email ?? compra.customer_email) as string | undefined;
-    const offerVal = (compra.offer ?? compra.product ?? compra.plan) as string | undefined;
-    const statusVal = (compra.status ?? body.status ?? "") as string;
-    if (emailVal && offerVal) {
-      return {
-        email: String(emailVal).toLowerCase().trim(),
-        offerName: String(offerVal),
-        status: String(statusVal),
-      };
-    }
+    return { email, offerName, status, event };
   }
 
   return null;
 }
 
-function isApprovedStatus(status: string): boolean {
-  const approved = ["approved", "aprovado", "paid", "pago", "completed", "complete", "success", "active", "purchase.approved", "payment.approved"];
-  return approved.some((s) => status.toLowerCase().includes(s));
+// Só libera acesso em pagamento confirmado.
+// Com "event" presente exigimos TRANSACTION_PAID — TRANSACTION_CREATED também
+// pode vir com status COMPLETED, então o evento manda.
+function isApproved(event: string, status: string): boolean {
+  if (event) return event.toUpperCase() === "TRANSACTION_PAID";
+  return ["COMPLETED", "PAID", "APPROVED", "PAGO", "APROVADO"].includes(status.toUpperCase());
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // Log dos headers recebidos (ajuda a diagnosticar a origem da chamada)
-    const allHeaders: Record<string, string> = {};
-    req.headers.forEach((value, key) => { allHeaders[key] = value; });
-    console.log("[Aplifay Webhook] Headers:", JSON.stringify(allHeaders));
+    const body = (await req.json()) as Record<string, unknown>;
 
-    // Validação do secret: aceita o token em QUALQUER header comum ou na query string.
-    // A query string (?secret=...) é a forma garantida, pois a URL é definida por nós no painel da Aplifay.
+    // Log sem o token, para não vazar credencial nos logs
+    const safeBody = { ...body };
+    delete safeBody.token;
+    console.log("[Aplifay Webhook] Payload:", JSON.stringify(safeBody));
+
+    // A ApplyFy envia o token de validação no CORPO (campo "token").
+    // Query string e headers ficam como alternativas aceitas.
     const secret = process.env.APLIFAY_WEBHOOK_SECRET;
     if (secret && secret !== "trocar_depois") {
       const candidates = [
-        req.headers.get("x-aplifay-secret"),
-        req.headers.get("x-aplifay-token"),
-        req.headers.get("x-applyfy-secret"),
-        req.headers.get("x-applyfy-token"),
-        req.headers.get("x-webhook-secret"),
-        req.headers.get("x-webhook-token"),
-        req.headers.get("x-token"),
-        req.headers.get("token"),
-        req.headers.get("authorization")?.replace(/^Bearer\s+/i, ""),
+        typeof body.token === "string" ? body.token : null,
         req.nextUrl.searchParams.get("secret"),
         req.nextUrl.searchParams.get("token"),
+        req.headers.get("x-aplifay-secret"),
+        req.headers.get("x-applyfy-token"),
+        req.headers.get("x-webhook-token"),
+        req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null,
       ].filter((v): v is string => Boolean(v));
 
       if (!candidates.includes(secret)) {
-        console.warn("[Aplifay Webhook] Secret invalido. Candidatos recebidos:", JSON.stringify(candidates));
+        console.warn("[Aplifay Webhook] Token de validação inválido. Requisição recusada.");
         return Response.json({ error: "Unauthorized" }, { status: 401 });
       }
     }
 
-    const body = (await req.json()) as Record<string, unknown>;
     const parsed = parseAplifayPayload(body);
 
     if (!parsed) {
-      console.error("[Aplifay Webhook] Não foi possível extrair email/oferta do payload:", JSON.stringify(body));
+      console.error("[Aplifay Webhook] Payload sem email ou produto:", JSON.stringify(safeBody));
       return Response.json({ error: "Payload não reconhecido" }, { status: 400 });
     }
 
-    const { email, offerName, status } = parsed;
+    const { email, offerName, status, event } = parsed;
 
-    // Processa somente pagamentos aprovados
-    if (!isApprovedStatus(status)) {
-      console.log(`[Aplifay Webhook] Status "${status}" ignorado para ${email}.`);
-      return Response.json({ ok: true, message: `Status "${status}" ignorado` });
+    if (!isApproved(event, status)) {
+      console.log(`[Aplifay Webhook] Evento "${event}" (status "${status}") ignorado para ${email}.`);
+      return Response.json({ ok: true, message: `Evento "${event}" ignorado` });
     }
 
     const credits = getCreditsByPlan(offerName);
     const supabase = createAdminClient();
 
-    // Verifica se o usuário já existe
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
     const existingUser = existingUsers?.users?.find((u) => u.email === email);
 
     let userId: string;
 
     if (existingUser) {
-      // Usuário já existe: apenas adiciona créditos
       userId = existingUser.id;
-      console.log(`[Aplifay Webhook] Usuário existente encontrado: ${email} (${userId})`);
+      console.log(`[Aplifay Webhook] Usuário existente: ${email} (${userId})`);
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -154,9 +142,8 @@ export async function POST(req: NextRequest) {
         .update({ credits: currentCredits + credits })
         .eq("id", userId);
 
-      console.log(`[Aplifay Webhook] Créditos adicionados: +${credits} para ${email}. Total: ${currentCredits + credits}`);
+      console.log(`[Aplifay Webhook] +${credits} créditos para ${email}. Total: ${currentCredits + credits}`);
     } else {
-      // Usuário novo: cria a conta
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email,
         email_confirm: true,
@@ -170,10 +157,9 @@ export async function POST(req: NextRequest) {
       userId = newUser.user.id;
       console.log(`[Aplifay Webhook] Novo usuário criado: ${email} (${userId})`);
 
-      // Aguarda o trigger do Supabase criar o perfil (criado via trigger on_auth_user_created)
+      // Aguarda o trigger on_auth_user_created montar o perfil
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Atualiza créditos (o trigger cria com 50 free, somamos os do plano)
       const { data: profile } = await supabase
         .from("profiles")
         .select("credits")
@@ -186,21 +172,17 @@ export async function POST(req: NextRequest) {
         .update({ credits: baseCredits + credits })
         .eq("id", userId);
 
-      console.log(`[Aplifay Webhook] Perfil atualizado: ${email} com ${baseCredits + credits} créditos`);
+      console.log(`[Aplifay Webhook] Perfil de ${email} com ${baseCredits + credits} créditos`);
 
-      // Envia magic link para o usuário acessar a conta
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vitrix-ai.vercel.app";
       const { error: magicLinkError } = await supabase.auth.admin.generateLink({
         type: "magiclink",
         email,
-        options: {
-          redirectTo: `${appUrl}/dashboard`,
-        },
+        options: { redirectTo: `${appUrl}/dashboard` },
       });
 
       if (magicLinkError) {
         console.warn("[Aplifay Webhook] Erro ao gerar magic link:", magicLinkError);
-        // Não retorna erro — conta foi criada com sucesso
       } else {
         console.log(`[Aplifay Webhook] Magic link enviado para ${email}`);
       }
@@ -208,7 +190,7 @@ export async function POST(req: NextRequest) {
 
     return Response.json({
       ok: true,
-      message: `Conta processada com sucesso`,
+      message: "Conta processada com sucesso",
       email,
       credits_added: credits,
       plan: offerName,
@@ -219,7 +201,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Permite que a Aplifay faça GET para verificar se o endpoint está ativo
+// Health check — a ApplyFy pode fazer GET para verificar se o endpoint está ativo
 export async function GET() {
   return Response.json({ status: "Vitrix AI Webhook OK" });
 }
