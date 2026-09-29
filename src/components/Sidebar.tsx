@@ -25,6 +25,15 @@ function IconSearch({ className }: IconProps) {
   );
 }
 
+function IconReceipt({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M5 21V4a1 1 0 011-1h12a1 1 0 011 1v17l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6" />
+    </svg>
+  );
+}
+
 function IconUser({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -46,6 +55,7 @@ function IconLogout({ className }: IconProps) {
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", Icon: IconChart },
+  { href: "/historico", label: "Histórico de vendas", Icon: IconReceipt },
   { href: "/clientes", label: "Procurar Clientes", Icon: IconSearch },
   { href: "/conta", label: "Conta", Icon: IconUser },
 ];
