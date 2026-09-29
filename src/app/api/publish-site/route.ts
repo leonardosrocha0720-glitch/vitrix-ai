@@ -1,0 +1,72 @@
+import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+
+function generateSlug(businessName: string): string {
+  const base = businessName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .substring(0, 40);
+  const suffix = Math.random().toString(36).substring(2, 7);
+  return `${base}-${suffix}`;
+}
+
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("credits")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.credits < 1) {
+    return NextResponse.json({ error: "Créditos insuficientes" }, { status: 402 });
+  }
+
+  const body = await req.json();
+  const { htmlContent, businessName } = body;
+
+  if (!htmlContent || !businessName) {
+    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+  }
+
+  const slug = generateSlug(businessName);
+
+  const { data: site, error } = await supabase
+    .from("published_sites")
+    .insert({
+      user_id: user.id,
+      slug,
+      business_name: businessName,
+      html_content: htmlContent,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: "Erro ao publicar" }, { status: 500 });
+  }
+
+  await supabase
+    .from("profiles")
+    .update({ credits: profile.credits - 1 })
+    .eq("id", user.id);
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return NextResponse.json({
+    slug,
+    url: `${appUrl}/s/${slug}`,
+    siteId: site.id,
+  });
+}

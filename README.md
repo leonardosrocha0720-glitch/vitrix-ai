@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vitrix AI
 
-## Getting Started
+Ferramenta web para prospecção de negócios locais usando a Google Places API. Busque por nicho e cidade, filtre por avaliação, número de reviews e presença de site, e exporte os resultados para Excel.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Next.js (App Router) + TypeScript
+- Tailwind CSS
+- Route Handler (`/api/search`) que chama a Google Places API (New) no servidor, com streaming de progresso (NDJSON)
+- `xlsx` para exportação em Excel
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuração
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Instale as dependências:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   npm install
+   ```
 
-## Learn More
+2. Crie um projeto no [Google Cloud Console](https://console.cloud.google.com/), habilite a **Places API (New)** e gere uma chave de API.
 
-To learn more about Next.js, take a look at the following resources:
+3. Copie `.env.local.example` para `.env.local` e cole sua chave:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   cp .env.local.example .env.local
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```
+   GOOGLE_PLACES_API_KEY=sua-chave-aqui
+   ```
 
-## Deploy on Vercel
+   A chave nunca é exposta ao frontend — todas as chamadas à Places API acontecem no Route Handler `src/app/api/search/route.ts`, executado no servidor.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. Rode o servidor de desenvolvimento:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```bash
+   npm run dev
+   ```
+
+   Abra [http://localhost:3000](http://localhost:3000).
+
+## Como funciona
+
+- O formulário (`SearchForm`) envia nicho, cidade/estado, faixa de avaliação (slider duplo), número mínimo de avaliações e filtro de site.
+- A rota `/api/search` monta a query (`"<nicho> em <cidade>, <estado>"`), busca até 3 páginas (60 resultados) na Places API `searchText`, aplica os filtros e transmite eventos de progresso via streaming NDJSON enquanto busca.
+- O frontend lê o stream e atualiza a barra de progresso em tempo real; ao final, exibe os cards de resumo e a tabela interativa (busca, ordenação por coluna, badge "SEM SITE").
+- O botão "Exportar Excel" gera um `.xlsx` a partir dos resultados atualmente filtrados/ordenados na tabela.
+
+## Deploy na Vercel
+
+1. Suba o projeto para um repositório Git.
+2. Importe o repositório na [Vercel](https://vercel.com/new).
+3. Configure a variável de ambiente `GOOGLE_PLACES_API_KEY` nas configurações do projeto (Settings → Environment Variables).
+4. Deploy.
+
+## Limites e custos
+
+- Cada busca consome chamadas da Places API `searchText` (até 3 páginas por busca). Consulte os [preços da Google Places API](https://mapsplatform.google.com/pricing/) e configure limites de faturamento no Google Cloud.
