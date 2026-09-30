@@ -1,14 +1,14 @@
 import type { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import type { ColorPalette } from "@/lib/palettes";
 import type { BusinessExtraData, TipoCTA } from "@/types/business";
 import { toBrazilianE164Digits } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { generateSiteHtml, getGenerationProvider, getProviderApiKey } from "@/lib/siteGenerators";
 
 export const runtime = "nodejs";
 
-// Chave para pausar a geração via Claude sem mexer no resto: com true, a rota
+// Chave para pausar a geração via IA sem mexer no resto: com true, a rota
 // responde 503 antes de debitar crédito (fluxo alternativo: /gerar-prompt).
 const GENERATION_DISABLED = false;
 
@@ -119,9 +119,12 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Geração de sites em manutenção." }, { status: 503 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // GENERATION_MODEL (claude | gemini) decide o provedor. A chave é checada
+  // antes do débito para não cobrar crédito de uma geração que nem começa.
+  const provider = getGenerationProvider();
+  const { env: apiKeyEnv, key: apiKey } = getProviderApiKey(provider);
   if (!apiKey) {
-    return Response.json({ error: "ANTHROPIC_API_KEY não configurada." }, { status: 500 });
+    return Response.json({ error: `${apiKeyEnv} não configurada.` }, { status: 500 });
   }
 
   const supabase = await createClient();
@@ -133,7 +136,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  // Debita ANTES de chamar a Claude. debitar_credito() verifica e desconta na
+  // Debita ANTES de chamar a IA. debitar_credito() verifica e desconta na
   // mesma operacao no Postgres, entao cliques simultaneos nao conseguem gerar
   // dois sites com um credito so. Se a geracao falhar, estornamos abaixo.
   const { data: saldo, error: debitoError } = await supabase.rpc("debitar_credito");
@@ -159,8 +162,6 @@ export async function POST(req: NextRequest) {
   const ctaHref = buildCtaHref(tipoCTA, phoneDigits);
   const ctaLabel = CTA_LABELS[tipoCTA];
   const whatsappHref = phoneDigits ? `https://wa.me/${phoneDigits}` : null;
-
-  const client = new Anthropic({ apiKey });
 
   const searchTerm = nicheToEnglish(niche);
   const images = await fetchUnsplashImages(searchTerm);
@@ -268,15 +269,7 @@ REGRAS
 `;
 
   try {
-    const message = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 16000,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    let html = (message.content[0] as { type: string; text: string }).text;
-    // Remove markdown code blocks caso o modelo os inclua
-    html = html.replace(/^```[a-z]*\n?/i, "").replace(/```\s*$/i, "").trim();
+    const html = await generateSiteHtml(provider, prompt, apiKey);
 
     await supabase.from("generated_sites").insert({
       user_id: user.id,
