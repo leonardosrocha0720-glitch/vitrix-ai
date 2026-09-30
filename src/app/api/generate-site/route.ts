@@ -51,31 +51,65 @@ const CTA_LABELS: Record<TipoCTA, string> = {
   formulario: "Solicitar contato",
 };
 
-// Traduz nicho para termo de busca em inglês para melhores resultados
+// Nichos alimentícios. A ordem importa: os mais específicos vêm antes
+// (ex.: "restaurante japonês" deve cair em sushi, não em restaurante).
+const FOOD_NICHES: [string, string][] = [
+  ["hamburgueria", "burger food restaurant"],
+  ["hamburguer", "burger food restaurant"],
+  ["burger", "burger food restaurant"],
+  ["pizzaria", "pizza food"],
+  ["pizza", "pizza food"],
+  ["parrilla", "grilled steak parrilla food"],
+  ["churrascaria", "barbecue grilled meat food"],
+  ["churrasco", "barbecue grilled meat food"],
+  ["espetinho", "grilled skewers barbecue food"],
+  ["sushi", "sushi japanese food"],
+  ["japones", "sushi japanese food"],
+  ["temakeria", "sushi temaki japanese food"],
+  ["acai", "acai bowl food"],
+  ["sorveteria", "ice cream dessert food"],
+  ["confeitaria", "cake pastry dessert food"],
+  ["doceria", "sweets dessert food"],
+  ["padaria", "bakery bread food"],
+  ["pastelaria", "pastel fried pastry food"],
+  ["cafeteria", "coffee cafe food"],
+  ["marmitaria", "brazilian lunch plate food"],
+  ["marmita", "brazilian lunch plate food"],
+  ["lanchonete", "snack sandwich food"],
+  ["restaurante", "restaurant food dish"],
+  ["comida", "restaurant food dish"],
+  ["gastronomia", "gourmet food dish"],
+  ["delivery", "food delivery dish"],
+];
+
+const OTHER_NICHES: [string, string][] = [
+  ["dentista", "dental clinic interior professional"],
+  ["odontologia", "dental clinic modern professional"],
+  ["salao", "hair salon beauty interior modern"],
+  ["barbearia", "barbershop modern interior"],
+  ["academia", "gym fitness modern interior"],
+  ["farmacia", "pharmacy modern interior"],
+  ["clinica", "medical clinic modern interior"],
+  ["advocacia", "law office professional interior"],
+  ["contabilidade", "accounting office professional"],
+  ["imobiliaria", "real estate office modern"],
+  ["pet", "veterinary clinic pet shop interior"],
+  ["mecanica", "auto repair shop professional"],
+  ["supermercado", "supermarket modern interior"],
+  ["escola", "school education modern interior"],
+];
+
+// Traduz nicho para termo de busca em inglês para melhores resultados no Unsplash
 function nicheToEnglish(niche: string): string {
-  const map: Record<string, string> = {
-    dentista: "dental clinic interior professional",
-    odontologia: "dental clinic modern professional",
-    restaurante: "restaurant interior elegant dining",
-    lanchonete: "cafe restaurant food interior",
-    pizzaria: "pizza restaurant italian interior",
-    salão: "hair salon beauty interior modern",
-    barbearia: "barbershop modern interior",
-    academia: "gym fitness modern interior",
-    farmácia: "pharmacy modern interior",
-    clínica: "medical clinic modern interior",
-    advocacia: "law office professional interior",
-    contabilidade: "accounting office professional",
-    imobiliária: "real estate office modern",
-    pet: "veterinary clinic pet shop interior",
-    mecânica: "auto repair shop professional",
-    padaria: "bakery modern interior bread",
-    supermercado: "supermarket modern interior",
-    escola: "school education modern interior",
-  };
-  const lower = niche.toLowerCase();
-  for (const [key, value] of Object.entries(map)) {
-    if (lower.includes(key)) return value;
+  // Sem acentos, para "pizzaria"/"açaí"/"salão" baterem com ou sem acento
+  const normalized = niche.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  for (const [key, value] of FOOD_NICHES) {
+    // Nicho alimentício sempre leva "food", senão o Unsplash devolve fotos de escritório
+    if (normalized.includes(key)) return value.includes("food") ? value : `${value} food`;
+  }
+  for (const [key, value] of OTHER_NICHES) {
+    if (normalized.includes(key)) return value;
   }
   return `${niche} professional business interior`;
 }
@@ -134,11 +168,11 @@ export async function POST(req: NextRequest) {
   const imageInstructions = images.length > 0
     ? `IMAGENS REAIS — use exatamente estas URLs, não invente outras:
 ${images.map((url, i) => `Imagem ${i + 1}: ${url}`).join("\n")}
-- Hero: Imagem 1 como background-image (bg-cover bg-center) com overlay da cor primary semitransparente por cima
-- Sobre nós: Imagem 2 ao lado do texto, com cantos arredondados
-- Cards de serviço: Imagens 3, 4 e 5 no topo dos cards (se houver mais cards que imagens, repita na ordem)
-- Todas as <img> com alt descritivo, loading="lazy" (exceto o hero) e object-cover`
-    : `Sem imagens disponíveis: use gradientes com as cores primary/secondary no hero e ícones SVG inline nos cards de serviço.`;
+- Hero: NÃO use imagem (o hero é só gradiente, ver estrutura)
+- Sobre nós: Imagem 1 ao lado do texto, com cantos arredondados
+- Cards de serviço: Imagens 2, 3, 4 e 5 no topo dos cards, na ordem (se houver mais cards que imagens, repita a partir da Imagem 2)
+- Todas as <img> com alt descritivo, loading="lazy" e object-cover`
+    : `Sem imagens disponíveis: use ícones SVG inline nos cards de serviço e um bloco decorativo em gradiente primary→secondary no lugar da foto do "Sobre nós".`;
 
   const ctaInstructions =
     tipoCTA === "formulario"
@@ -194,8 +228,8 @@ Configure a paleta via tailwind.config ANTES de usar as classes:
 </script>
 
 USO DA PALETA (consistente no site inteiro):
-- primary: fundo/overlay do hero, TODOS os botões de CTA, títulos em destaque, ícones dos diferenciais, fundo da seção CTA final
-- secondary: detalhes e acentos (sublinhados, badges, hover dos botões, estrelas, bordas de destaque)
+- primary: início do gradiente do hero, TODOS os botões de CTA, títulos em destaque, ícones dos diferenciais, fundo da seção CTA final
+- secondary: fim do gradiente do hero, detalhes e acentos (sublinhados, badges, hover dos botões, estrelas, bordas de destaque)
 - background: fundo geral das seções claras; alterne com branco para separar seções
 - textMain: cor do texto corrido
 Não introduza outras cores de marca além dessas (exceto o verde oficial do WhatsApp no botão flutuante).
@@ -213,7 +247,7 @@ ${imageInstructions}
 ESTRUTURA — gere TODAS as seções, nesta ordem:
 
 0. HEADER fixo e compacto: nome do negócio (logo tipográfico) + links âncora para as seções (escondidos no mobile, com menu hambúrguer) + botão CTA.
-1. HERO (min-h-screen): título impactante e específico para o nicho (não genérico), subtítulo de 1 frase com o benefício principal${city ? ` e a cidade (${city})` : ""}, botão CTA grande. ${rating !== null ? "Mostre um selo com a nota do Google e as estrelas SVG." : ""}
+1. HERO (min-h-screen): SEM imagem de fundo e SEM overlay escuro. Fundo em gradiente CSS da paleta: bg-gradient-to-br from-primary via-primary to-secondary (primária domina, secundária aparece no canto). Pode acrescentar 2-3 formas decorativas sutis (círculos com blur, bg-white/10 ou bg-secondary/30) atrás do conteúdo para dar profundidade. Texto branco sobre a área da cor primária, com contraste garantido. Título impactante e específico para o nicho (não genérico), subtítulo de 1 frase com o benefício principal${city ? ` e a cidade (${city})` : ""}, botão CTA grande. ${rating !== null ? "Mostre um selo com a nota do Google e as estrelas SVG." : ""}
 2. SOBRE NÓS (id="sobre"): 2-3 frases sobre o negócio, incorporando o diferencial principal.
 3. SERVIÇOS (id="servicos"): um card por serviço (grid 1 coluna no mobile, 2-3 no desktop), cada um com título e descrição curta e concreta.
 4. POR QUE NOS ESCOLHER (id="diferenciais"): exatamente 3 diferenciais, cada um com ícone SVG inline (stroke, 24x24, cor primary), título curto e 1 frase. O primeiro deve ser o diferencial principal informado.
