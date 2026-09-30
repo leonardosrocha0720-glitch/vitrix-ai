@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { exportBusinessesToExcel } from "@/lib/exportExcel";
 import type { Business, BusinessExtraData } from "@/types/business";
 import type { ColorPalette } from "@/lib/palettes";
@@ -161,7 +160,15 @@ export default function ResultsTable({
     }
   };
 
-  // Fluxo: Gerar site -> BusinessDataModal -> PaletteModal -> /api/generate-site
+  // Fluxo ativo: Criar site -> PaletteModal -> /api/generate-site.
+  // O BusinessDataModal (handleOpenDataModal/handleConfirmData) fica desconectado
+  // por enquanto; sem ele, a rota usa o telefone do Google e CTA de WhatsApp.
+  const handleOpenPaletteModal = (business: Business) => {
+    setPendingBusiness(business);
+    setPendingExtra(null);
+    setShowPaletteModal(true);
+  };
+
   const handleOpenDataModal = (business: Business) => {
     setPendingBusiness(business);
     setPendingExtra(null);
@@ -180,7 +187,7 @@ export default function ResultsTable({
     setShowPaletteModal(false);
     setPendingBusiness(null);
     setPendingExtra(null);
-    if (business && extra) handleGenerateSite(business, palette, extra);
+    if (business) handleGenerateSite(business, palette, extra ?? {});
   };
 
   const handleCancelModals = () => {
@@ -377,21 +384,29 @@ export default function ResultsTable({
                     </td>
 
                     <td className="px-4 py-3.5">
-                      <Link
-                        href={`/gerar-prompt?${new URLSearchParams({
-                          nome: b.name,
-                          nicho: searchNiche,
-                          cidade: searchCity,
-                          telefone: b.phone ?? "",
-                        })}`}
-                        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[9px] border border-brand/[0.34] bg-brand/[0.12] px-3.5 py-[7px] text-xs font-semibold text-brand-2 transition-all hover:bg-brand/[0.26] hover:text-white hover:shadow-[0_0_18px_-5px_rgba(139,92,246,0.9)]"
+                      <button
+                        onClick={() => handleOpenPaletteModal(b)}
+                        disabled={generatingId !== null}
+                        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[9px] border border-brand/[0.34] bg-brand/[0.12] px-3.5 py-[7px] text-xs font-semibold text-brand-2 transition-all hover:bg-brand/[0.26] hover:text-white hover:shadow-[0_0_18px_-5px_rgba(139,92,246,0.9)] disabled:cursor-not-allowed disabled:border-line-soft disabled:bg-transparent disabled:text-muted/50 disabled:shadow-none"
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-                          <path d="M12 3l1.9 4.6 4.6 1.9-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
-                          <path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
-                        </svg>
-                        Criar site
-                      </Link>
+                        {isGeneratingThis ? (
+                          <>
+                            <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                            </svg>
+                            Gerando
+                          </>
+                        ) : (
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                              <path d="M12 3l1.9 4.6 4.6 1.9-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
+                              <path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
+                            </svg>
+                            Criar site
+                          </>
+                        )}
+                      </button>
                     </td>
                   </tr>
                 );

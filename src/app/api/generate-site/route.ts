@@ -8,10 +8,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-// Geração via Claude pausada: os sites agora são gerados no Google AI Studio a
-// partir do prompt montado em /gerar-prompt. Enquanto isso, a rota recusa tudo
-// antes de debitar crédito. Para reativar, volte para false.
-const GENERATION_DISABLED = true;
+// Chave para pausar a geração via Claude sem mexer no resto: com true, a rota
+// responde 503 antes de debitar crédito (fluxo alternativo: /gerar-prompt).
+const GENERATION_DISABLED = false;
 
 export interface GenerateSiteRequest extends BusinessExtraData {
   name: string;
