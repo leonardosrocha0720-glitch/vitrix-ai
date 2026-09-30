@@ -2,10 +2,16 @@ import type { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ColorPalette } from "@/lib/palettes";
 import type { BusinessExtraData, TipoCTA } from "@/types/business";
+import { toBrazilianE164Digits } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+
+// Geração via Claude pausada: os sites agora são gerados no Google AI Studio a
+// partir do prompt montado em /gerar-prompt. Enquanto isso, a rota recusa tudo
+// antes de debitar crédito. Para reativar, volte para false.
+const GENERATION_DISABLED = true;
 
 export interface GenerateSiteRequest extends BusinessExtraData {
   name: string;
@@ -31,13 +37,6 @@ async function fetchUnsplashImages(query: string, count: number = 5): Promise<st
   } catch {
     return [];
   }
-}
-
-// Normaliza para DDI 55 + DDD + número, que é o formato do wa.me
-function toBrazilianE164Digits(phone: string): string {
-  const digits = phone.replace(/\D/g, "").replace(/^0+/, "");
-  if (!digits) return "";
-  return digits.startsWith("55") && digits.length >= 12 ? digits : `55${digits}`;
 }
 
 function buildCtaHref(tipoCTA: TipoCTA, phoneDigits: string): string {
@@ -83,6 +82,10 @@ function nicheToEnglish(niche: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (GENERATION_DISABLED) {
+    return Response.json({ error: "Geração de sites em manutenção." }, { status: 503 });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "ANTHROPIC_API_KEY não configurada." }, { status: 500 });
