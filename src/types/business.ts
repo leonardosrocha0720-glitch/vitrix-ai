@@ -9,6 +9,17 @@ export interface Business {
   mapsUrl: string;
 }
 
+export type TipoCTA = "whatsapp" | "ligar" | "formulario";
+
+// Dados coletados no BusinessDataModal antes de gerar o site
+export interface BusinessExtraData {
+  telefone?: string;
+  horario?: string;
+  diferencial?: string;
+  servicos?: string;
+  tipoCTA?: TipoCTA;
+}
+
 export type SiteFilter = "all" | "no-site" | "with-site";
 
 export interface SearchFormValues {

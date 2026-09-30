@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { exportBusinessesToExcel } from "@/lib/exportExcel";
-import type { Business } from "@/types/business";
+import type { Business, BusinessExtraData } from "@/types/business";
 import type { ColorPalette } from "@/lib/palettes";
 import SitePreviewModal from "@/components/SitePreviewModal";
 import PaletteModal from "@/components/PaletteModal";
+import BusinessDataModal from "@/components/BusinessDataModal";
 
 interface ResultsTableProps {
   results: Business[];
@@ -59,6 +60,8 @@ export default function ResultsTable({
   const [genSeconds, setGenSeconds] = useState<number | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const [pendingBusiness, setPendingBusiness] = useState<Business | null>(null);
+  const [pendingExtra, setPendingExtra] = useState<BusinessExtraData | null>(null);
+  const [showDataModal, setShowDataModal] = useState(false);
   const [showPaletteModal, setShowPaletteModal] = useState(false);
 
   const handleSort = (key: SortKey) => {
@@ -113,7 +116,11 @@ export default function ResultsTable({
     );
   };
 
-  const handleGenerateSite = async (business: Business, palette: ColorPalette) => {
+  const handleGenerateSite = async (
+    business: Business,
+    palette: ColorPalette,
+    extra: BusinessExtraData,
+  ) => {
     setGeneratingId(business.id);
     setGenError(null);
     setPreviewBusiness(business);
@@ -134,6 +141,7 @@ export default function ResultsTable({
           niche: searchNiche || "negócio local",
           city: searchCity || null,
           palette,
+          ...extra,
         }),
       });
       const data = await res.json();
@@ -152,21 +160,33 @@ export default function ResultsTable({
     }
   };
 
-  const handleOpenPaletteModal = (business: Business) => {
+  // Fluxo: Gerar site -> BusinessDataModal -> PaletteModal -> /api/generate-site
+  const handleOpenDataModal = (business: Business) => {
     setPendingBusiness(business);
+    setPendingExtra(null);
+    setShowDataModal(true);
+  };
+
+  const handleConfirmData = (extra: BusinessExtraData) => {
+    setPendingExtra(extra);
+    setShowDataModal(false);
     setShowPaletteModal(true);
   };
 
   const handleSelectPalette = (palette: ColorPalette) => {
     const business = pendingBusiness;
+    const extra = pendingExtra;
     setShowPaletteModal(false);
     setPendingBusiness(null);
-    if (business) handleGenerateSite(business, palette);
+    setPendingExtra(null);
+    if (business && extra) handleGenerateSite(business, palette, extra);
   };
 
-  const handleCancelPaletteModal = () => {
+  const handleCancelModals = () => {
+    setShowDataModal(false);
     setShowPaletteModal(false);
     setPendingBusiness(null);
+    setPendingExtra(null);
   };
 
   const handleClosePreview = () => {
@@ -203,11 +223,20 @@ export default function ResultsTable({
         />
       )}
 
+      {showDataModal && pendingBusiness && (
+        <BusinessDataModal
+          businessName={pendingBusiness.name}
+          initialPhone={pendingBusiness.phone}
+          onConfirm={handleConfirmData}
+          onCancel={handleCancelModals}
+        />
+      )}
+
       {showPaletteModal && pendingBusiness && (
         <PaletteModal
           businessName={pendingBusiness.name}
           onSelect={handleSelectPalette}
-          onCancel={handleCancelPaletteModal}
+          onCancel={handleCancelModals}
         />
       )}
 
@@ -348,7 +377,7 @@ export default function ResultsTable({
 
                     <td className="px-4 py-3.5">
                       <button
-                        onClick={() => handleOpenPaletteModal(b)}
+                        onClick={() => handleOpenDataModal(b)}
                         disabled={generatingId !== null}
                         className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[9px] border border-brand/[0.34] bg-brand/[0.12] px-3.5 py-[7px] text-xs font-semibold text-brand-2 transition-all hover:bg-brand/[0.26] hover:text-white hover:shadow-[0_0_18px_-5px_rgba(139,92,246,0.9)] disabled:cursor-not-allowed disabled:border-line-soft disabled:bg-transparent disabled:text-muted/50 disabled:shadow-none"
                       >

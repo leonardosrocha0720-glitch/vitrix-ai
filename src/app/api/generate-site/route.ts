@@ -1,12 +1,13 @@
 import type { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ColorPalette } from "@/lib/palettes";
+import type { BusinessExtraData, TipoCTA } from "@/types/business";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-export interface GenerateSiteRequest {
+export interface GenerateSiteRequest extends BusinessExtraData {
   name: string;
   address: string;
   phone: string | null;
@@ -31,6 +32,26 @@ async function fetchUnsplashImages(query: string, count: number = 5): Promise<st
     return [];
   }
 }
+
+// Normaliza para DDI 55 + DDD + número, que é o formato do wa.me
+function toBrazilianE164Digits(phone: string): string {
+  const digits = phone.replace(/\D/g, "").replace(/^0+/, "");
+  if (!digits) return "";
+  return digits.startsWith("55") && digits.length >= 12 ? digits : `55${digits}`;
+}
+
+function buildCtaHref(tipoCTA: TipoCTA, phoneDigits: string): string {
+  if (tipoCTA === "ligar") return `tel:+${phoneDigits}`;
+  if (tipoCTA === "formulario") return "#contato";
+  const text = encodeURIComponent("Olá! Vim pelo site e gostaria de mais informações.");
+  return `https://wa.me/${phoneDigits}?text=${text}`;
+}
+
+const CTA_LABELS: Record<TipoCTA, string> = {
+  whatsapp: "Falar no WhatsApp",
+  ligar: "Ligar agora",
+  formulario: "Solicitar contato",
+};
 
 // Traduz nicho para termo de busca em inglês para melhores resultados
 function nicheToEnglish(niche: string): string {
@@ -91,7 +112,17 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json()) as GenerateSiteRequest;
-  const { name, address, phone, rating, reviewCount, niche, city, palette } = body;
+  const { name, address, rating, reviewCount, niche, city, palette } = body;
+  const telefone = body.telefone?.trim() || body.phone || "";
+  const horario = body.horario?.trim();
+  const diferencial = body.diferencial?.trim();
+  const servicos = body.servicos?.trim();
+  const tipoCTA: TipoCTA = body.tipoCTA ?? "whatsapp";
+
+  const phoneDigits = toBrazilianE164Digits(telefone);
+  const ctaHref = buildCtaHref(tipoCTA, phoneDigits);
+  const ctaLabel = CTA_LABELS[tipoCTA];
+  const whatsappHref = phoneDigits ? `https://wa.me/${phoneDigits}` : null;
 
   const client = new Anthropic({ apiKey });
 
@@ -99,33 +130,52 @@ export async function POST(req: NextRequest) {
   const images = await fetchUnsplashImages(searchTerm);
 
   const imageInstructions = images.length > 0
-    ? `IMAGENS REAIS DISPONÍVEIS — use estas URLs nas tags <img> e como background-image:
+    ? `IMAGENS REAIS — use exatamente estas URLs, não invente outras:
 ${images.map((url, i) => `Imagem ${i + 1}: ${url}`).join("\n")}
-- Hero: use Imagem 1 como fundo (background-image) com overlay escuro semitransparente
-- Sobre nós: Imagem 2 ao lado do texto
-- Cards de serviços: Imagens 3, 4 e 5 como foto no topo de cada card
-Não invente URLs. Use apenas estas.`
-    : `Sem imagens disponíveis. Use gradientes CSS elegantes no hero e ícones SVG nos cards.`;
+- Hero: Imagem 1 como background-image (bg-cover bg-center) com overlay da cor primary semitransparente por cima
+- Sobre nós: Imagem 2 ao lado do texto, com cantos arredondados
+- Cards de serviço: Imagens 3, 4 e 5 no topo dos cards (se houver mais cards que imagens, repita na ordem)
+- Todas as <img> com alt descritivo, loading="lazy" (exceto o hero) e object-cover`
+    : `Sem imagens disponíveis: use gradientes com as cores primary/secondary no hero e ícones SVG inline nos cards de serviço.`;
 
-  const prompt = `Você é um web designer sênior especializado em sites de alta conversão para pequenos negócios brasileiros.
+  const ctaInstructions =
+    tipoCTA === "formulario"
+      ? `O CTA principal é um FORMULÁRIO DE CONTATO. Todos os botões de CTA do site levam para href="#contato".
+A seção CTA final (id="contato") contém um formulário com Nome, Telefone e Mensagem. No submit, um <script> inline curto faz preventDefault e ${whatsappHref ? `abre ${whatsappHref}?text= em nova aba, com os campos preenchidos no texto (encodeURIComponent)` : "mostra uma mensagem de agradecimento no lugar do formulário"}. Nada de backend.`
+      : `O CTA principal é "${ctaLabel}". TODOS os botões de CTA (header, hero, CTA final) usam exatamente href="${ctaHref}"${tipoCTA === "whatsapp" ? ' com target="_blank" rel="noopener"' : ""}.`;
 
-Crie um site completo e profissional em HTML para:
+  const floatingButton =
+    tipoCTA === "ligar"
+      ? `BOTÃO FLUTUANTE: fixed bottom-5 right-5 z-50, redondo, bg-primary, ícone SVG de telefone branco, href="${ctaHref}", aria-label="Ligar".`
+      : whatsappHref
+        ? `BOTÃO FLUTUANTE: fixed bottom-5 right-5 z-50, redondo, fundo #25D366, ícone SVG do WhatsApp branco, href="${whatsappHref}" target="_blank", aria-label="WhatsApp".`
+        : "";
 
+  const prompt = `Você é um web designer sênior especializado em sites one-page de alta conversão para pequenos negócios brasileiros.
+
+Crie um site ONE-PAGE moderno e profissional para o negócio abaixo. Use os dados reais — não invente telefone, endereço ou horário.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DADOS DO NEGÓCIO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Nome: ${name}
-Nicho: ${niche}
+Nicho: ${niche}${city ? `\nCidade: ${city}` : ""}
 Endereço: ${address}
-Telefone: ${phone ?? "Não informado"}
-Avaliação: ${rating !== null ? `${rating} estrelas (${reviewCount} avaliações no Google)` : "Não informado"}
+Telefone: ${telefone || "Não informado"}
+Horário de funcionamento: ${horario || "Não informado (omita o horário do site)"}
+Diferencial principal: ${diferencial || "Não informado (deduza diferenciais plausíveis para o nicho)"}
+Serviços: ${servicos || `Não informado (use 3 serviços típicos de "${niche}")`}
+Avaliação no Google: ${rating !== null ? `${rating.toFixed(1)} estrelas (${reviewCount} avaliações)` : "Não informado"}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STACK OBRIGATÓRIA — use exatamente estas bibliotecas via CDN:
+STACK
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
-- Animações: Use CSS puro com @keyframes e classes como "animate-fadeIn". NÃO use bibliotecas externas de animação.
-- Google Fonts: Importe "Inter" ou "Poppins" via link do Google Fonts
+- Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+- Uma fonte do Google Fonts (ex.: "Poppins" nos títulos, "Inter" no texto)
+- Animações SOMENTE com CSS puro (@keyframes no <style>). PROIBIDO AOS, GSAP, jQuery ou qualquer biblioteca JS externa.
+- JavaScript inline só se for estritamente necessário (menu mobile${tipoCTA === "formulario" ? ", submit do formulário" : ""}).
 
-
-Configure o Tailwind com as cores da paleta via tailwind.config:
+Configure a paleta via tailwind.config ANTES de usar as classes:
 <script>
   tailwind.config = {
     theme: {
@@ -141,39 +191,50 @@ Configure o Tailwind com as cores da paleta via tailwind.config:
   }
 </script>
 
+USO DA PALETA (consistente no site inteiro):
+- primary: fundo/overlay do hero, TODOS os botões de CTA, títulos em destaque, ícones dos diferenciais, fundo da seção CTA final
+- secondary: detalhes e acentos (sublinhados, badges, hover dos botões, estrelas, bordas de destaque)
+- background: fundo geral das seções claras; alterne com branco para separar seções
+- textMain: cor do texto corrido
+Não introduza outras cores de marca além dessas (exceto o verde oficial do WhatsApp no botão flutuante).
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REGRAS ABSOLUTAS — LEIA COM ATENÇÃO:
+CTA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-0. CRÍTICO: O HTML deve ser COMPLETO do <!DOCTYPE> até </html>. Nunca corte o código no meio. Se precisar, simplifique o CSS e o texto para garantir que todas as seções sejam geradas.
-1. ZERO emojis. Em nenhum lugar. Proibido.
-2. Use classes Tailwind para TODO o estilo. Seja CONCISO — evite classes redundantes. CSS customizado só para o que o Tailwind não cobre.
-3. Use CSS @keyframes para animações. Adicione no <style>: @keyframes fadeUp { from { opacity:0; transform:translateY(30px)} to { opacity:1; transform:translateY(0)} } .animate-fadeup { animation: fadeUp 0.7s ease forwards; }
-4. Textos realistas e específicos para o nicho "${niche}". Nada genérico.
-5. Retorne APENAS o HTML começando com <!DOCTYPE html>. Sem markdown, sem explicações.
+${ctaInstructions}
+${floatingButton}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${imageInstructions}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SEÇÕES OBRIGATÓRIAS (gere TODAS as 8, HTML conciso para não cortar):
+ESTRUTURA — gere TODAS as seções, nesta ordem:
 
-1. HEADER fixo: logo bold + nav (Início|Serviços|Sobre|Avaliações|Contato) + botão CTA cor primary
-2. HERO 100vh: fundo Imagem 1 com overlay bg-black/60, headline grande, subtítulo, 2 botões
-3. SERVIÇOS: grid 3 cards com foto (Imagens 3-5), título e descrição do nicho
-4. SOBRE NÓS: 2 colunas, texto à esquerda + Imagem 2 à direita
-5. DIFERENCIAIS: 3 itens com ícone SVG pequeno, título e texto curto
-6. AVALIAÇÕES: nota estrelas SVG, contagem avaliações, 3 depoimentos com nome e cidade
-7. CONTATO: endereço, telefone, botão WhatsApp SVG verde, link Google Maps
-8. FOOTER: nome, tagline, links, copyright
+0. HEADER fixo e compacto: nome do negócio (logo tipográfico) + links âncora para as seções (escondidos no mobile, com menu hambúrguer) + botão CTA.
+1. HERO (min-h-screen): título impactante e específico para o nicho (não genérico), subtítulo de 1 frase com o benefício principal${city ? ` e a cidade (${city})` : ""}, botão CTA grande. ${rating !== null ? "Mostre um selo com a nota do Google e as estrelas SVG." : ""}
+2. SOBRE NÓS (id="sobre"): 2-3 frases sobre o negócio, incorporando o diferencial principal.
+3. SERVIÇOS (id="servicos"): um card por serviço (grid 1 coluna no mobile, 2-3 no desktop), cada um com título e descrição curta e concreta.
+4. POR QUE NOS ESCOLHER (id="diferenciais"): exatamente 3 diferenciais, cada um com ícone SVG inline (stroke, 24x24, cor primary), título curto e 1 frase. O primeiro deve ser o diferencial principal informado.
+5. DEPOIMENTOS (id="depoimentos"): exatamente 2 depoimentos fictícios mas realistas para o nicho — nome brasileiro + bairro/cidade, 5 estrelas SVG, texto de 2 frases que cite um serviço específico. ${rating !== null ? `Acima deles, destaque "${rating.toFixed(1)} no Google · ${reviewCount} avaliações".` : ""}
+6. CTA FINAL (id="contato"): faixa em bg-primary com chamada forte e o botão CTA${tipoCTA === "formulario" ? " + o formulário" : ""}.
+7. FOOTER: nome, endereço, telefone clicável${horario ? ", horário de funcionamento" : ""}, link "Ver no Google Maps" (https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}), copyright com o ano atual.
 
-BOTÃO FLUTUANTE WhatsApp: fixed bottom-6 right-6, bg-green-500, rounded-full, p-4, shadow-lg, com ícone SVG branco, link https://wa.me/55${(phone ?? "").replace(/\D/g, "")}.
-
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REGRAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. CRÍTICO: HTML COMPLETO do <!DOCTYPE html> até </html>. Nunca corte no meio — se precisar, encurte textos e classes, mas gere todas as seções.
+2. MOBILE-FIRST: estilos base para celular, depois sm:/md:/lg:. Nada pode estourar a largura da tela; botões com área de toque >= 44px; textos legíveis no celular.
+3. Animações: defina no <style> um @keyframes fadeUp (opacity 0 + translateY(24px) → visível) e aplique com delays escalonados nos elementos do hero e nos cards. Respeite @media (prefers-reduced-motion: reduce) desativando as animações. Hover suave (transition) em cards e botões.
+4. ZERO emojis. Ícones apenas em SVG inline.
+5. Português do Brasil, textos específicos para "${niche}" — nada de lorem ipsum ou frases genéricas.
+6. <html lang="pt-BR">, <meta name="viewport">, <title> e <meta name="description"> com nome e nicho${city ? " e cidade" : ""}.
+7. Retorne APENAS o HTML, começando em <!DOCTYPE html>. Sem markdown, sem explicações.
 `;
 
   try {
     const message = await client.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 8192,
+      max_tokens: 16000,
       messages: [{ role: "user", content: prompt }],
     });
 
