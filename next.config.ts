@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // generate-site lê o banco de imagens de public/ com fs para embutir em base64.
+  // Arquivos de public/ não entram no bundle da função sozinhos na Vercel.
+  outputFileTracingIncludes: {
+    "/api/generate-site": ["./public/images/nichos/**/*"],
+  },
 };
 
 export default nextConfig;

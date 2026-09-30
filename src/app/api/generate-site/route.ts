@@ -1,7 +1,10 @@
 import type { NextRequest } from "next/server";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { ColorPalette } from "@/lib/palettes";
 import type { BusinessExtraData, TipoCTA } from "@/types/business";
 import { toBrazilianE164Digits } from "@/lib/phone";
+import { getRandomImages } from "@/lib/niches";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSiteHtml, getGenerationProvider, getProviderApiKey } from "@/lib/siteGenerators";
@@ -20,7 +23,41 @@ export interface GenerateSiteRequest extends BusinessExtraData {
   reviewCount: number;
   niche: string;
   city?: string;
+  nicheId?: string; // id em src/lib/niches.ts — banco de imagens próprio do nicho
   palette: ColorPalette;
+}
+
+const IMAGE_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+};
+
+// Lê uma imagem de public/ e devolve data URI. Base64 porque o preview é um
+// <iframe srcDoc> sem origem (caminho relativo não carrega) e o HTML baixado
+// precisa funcionar sozinho.
+async function imageToDataUri(publicPath: string): Promise<string | null> {
+  const mime = IMAGE_MIME[path.extname(publicPath).toLowerCase()];
+  if (!mime) return null;
+  try {
+    const buffer = await readFile(path.join(process.cwd(), "public", publicPath));
+    return `data:${mime};base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+// O modelo recebe só marcadores; o base64 (dezenas de milhares de tokens por
+// imagem) entra no HTML depois da geração.
+const NICHE_IMAGE_PLACEHOLDER = /\{\{NICHE_IMAGE_(\d+)\}\}/g;
+
+function injectNicheImages(html: string, dataUris: string[]): string {
+  if (dataUris.length === 0) return html;
+  return html.replace(NICHE_IMAGE_PLACEHOLDER, (_, n: string) => {
+    const index = Math.max(0, Number(n) - 1) % dataUris.length;
+    return dataUris[index];
+  });
 }
 
 async function fetchUnsplashImages(query: string, count: number = 5): Promise<string[]> {
@@ -151,7 +188,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json()) as GenerateSiteRequest;
-  const { name, address, rating, reviewCount, niche, city, palette } = body;
+  const { name, address, rating, reviewCount, niche, city, nicheId, palette } = body;
   const telefone = body.telefone?.trim() || body.phone || "";
   const horario = body.horario?.trim();
   const diferencial = body.diferencial?.trim();
@@ -163,17 +200,28 @@ export async function POST(req: NextRequest) {
   const ctaLabel = CTA_LABELS[tipoCTA];
   const whatsappHref = phoneDigits ? `https://wa.me/${phoneDigits}` : null;
 
-  const searchTerm = nicheToEnglish(niche);
-  const images = await fetchUnsplashImages(searchTerm);
+  // Cards de serviço: fotos do banco do nicho (até 3, sem repetir) ou só ícones.
+  // Sobre nós: 1 foto do Unsplash, quando houver.
+  const nicheImagePaths = nicheId ? getRandomImages(nicheId, 3) : [];
+  const nicheImageData = (await Promise.all(nicheImagePaths.map(imageToDataUri))).filter(
+    (uri): uri is string => uri !== null,
+  );
+  const [aboutImage] = await fetchUnsplashImages(nicheToEnglish(niche), 1);
 
-  const imageInstructions = images.length > 0
-    ? `IMAGENS REAIS — use exatamente estas URLs, não invente outras:
-${images.map((url, i) => `Imagem ${i + 1}: ${url}`).join("\n")}
+  const aboutInstruction = aboutImage
+    ? `- Sobre nós: use esta imagem ao lado do texto, com cantos arredondados: ${aboutImage}`
+    : `- Sobre nós: sem foto — use um bloco decorativo em gradiente primary→secondary no lugar.`;
+
+  const servicesInstruction = nicheImageData.length > 0
+    ? `- Cards de serviço: use estas imagens reais do negócio no topo dos cards, uma por card, na ordem (se houver mais cards que imagens, repita a partir da primeira). Escreva o src EXATAMENTE como abaixo, com as chaves — ele é substituído pela imagem depois:
+${nicheImageData.map((_, i) => `  <img src="{{NICHE_IMAGE_${i + 1}}}" alt="..." class="w-full h-48 object-cover">`).join("\n")}`
+    : `- Cards de serviço: use ícones SVG inline — NÃO use imagens externas nos cards.`;
+
+  const imageInstructions = `IMAGENS — não invente URLs, use apenas as indicadas:
 - Hero: NÃO use imagem (o hero é só gradiente, ver estrutura)
-- Sobre nós: Imagem 1 ao lado do texto, com cantos arredondados
-- Cards de serviço: Imagens 2, 3, 4 e 5 no topo dos cards, na ordem (se houver mais cards que imagens, repita a partir da Imagem 2)
-- Todas as <img> com alt descritivo, loading="lazy" e object-cover`
-    : `Sem imagens disponíveis: use ícones SVG inline nos cards de serviço e um bloco decorativo em gradiente primary→secondary no lugar da foto do "Sobre nós".`;
+${aboutInstruction}
+${servicesInstruction}
+- Todas as <img> com alt descritivo, loading="lazy" e object-cover`;
 
   const ctaInstructions =
     tipoCTA === "formulario"
@@ -269,7 +317,7 @@ REGRAS
 `;
 
   try {
-    const html = await generateSiteHtml(provider, prompt, apiKey);
+    const html = injectNicheImages(await generateSiteHtml(provider, prompt, apiKey), nicheImageData);
 
     await supabase.from("generated_sites").insert({
       user_id: user.id,

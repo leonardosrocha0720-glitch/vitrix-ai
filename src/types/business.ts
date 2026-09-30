@@ -23,7 +23,8 @@ export interface BusinessExtraData {
 export type SiteFilter = "all" | "no-site" | "with-site";
 
 export interface SearchFormValues {
-  niche: string;
+  niche: string; // termo enviado à busca (searchTerm do nicho)
+  nicheId: string; // id em src/lib/niches.ts — escolhe o banco de imagens do site
   city: string;
   state: string;
   minRating: number;

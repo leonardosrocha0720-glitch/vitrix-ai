@@ -12,6 +12,7 @@ interface ResultsTableProps {
   results: Business[];
   searchNiche?: string;
   searchCity?: string;
+  nicheId?: string;
 }
 
 type SortKey = "name" | "rating" | "website";
@@ -47,6 +48,7 @@ export default function ResultsTable({
   results,
   searchNiche = "",
   searchCity = "",
+  nicheId,
 }: ResultsTableProps) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("rating");
@@ -140,6 +142,7 @@ export default function ResultsTable({
           reviewCount: business.reviewCount,
           niche: searchNiche || "negócio local",
           city: searchCity || null,
+          nicheId: nicheId || undefined,
           palette,
           ...extra,
         }),

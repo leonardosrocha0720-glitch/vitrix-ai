@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import RatingRangeSlider from "@/components/RatingRangeSlider";
+import { NICHES } from "@/lib/niches";
 import type { SearchFormValues, SiteFilter } from "@/types/business";
 
 interface SearchFormProps {
@@ -11,6 +12,7 @@ interface SearchFormProps {
 
 const DEFAULT_VALUES: SearchFormValues = {
   niche: "",
+  nicheId: "",
   city: "",
   state: "",
   minRating: 3.5,
@@ -42,12 +44,18 @@ const inputClass =
 export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
   const [values, setValues] = useState<SearchFormValues>(DEFAULT_VALUES);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showNicheError, setShowNicheError] = useState(false);
 
-  const canSubmit = values.niche.trim().length > 0 && values.city.trim().length > 0;
+  // O nicho fica fora do disabled do botão para a mensagem de erro poder aparecer
+  const canSubmit = values.city.trim().length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || isLoading) return;
+    if (!values.nicheId) {
+      setShowNicheError(true);
+      return;
+    }
     onSubmit(values);
   };
 
@@ -68,18 +76,38 @@ export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
 
       <div className="grid gap-3.5 px-[18px] pb-[18px] pt-4">
         <div className="grid gap-1.5">
-          <label htmlFor="niche" className={labelClass}>
+          <span id="niche-label" className={labelClass}>
             Nicho de negócio
-          </label>
-          <input
-            id="niche"
-            type="text"
-            required
-            placeholder="dentista, barbearia, pizzaria..."
-            value={values.niche}
-            onChange={(e) => setValues((v) => ({ ...v, niche: e.target.value }))}
-            className={inputClass}
-          />
+          </span>
+          <div role="group" aria-labelledby="niche-label" className="flex flex-wrap gap-1.5">
+            {NICHES.map((niche) => {
+              const isSelected = values.nicheId === niche.id;
+              return (
+                <button
+                  key={niche.id}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => {
+                    setValues((v) => ({ ...v, nicheId: niche.id, niche: niche.searchTerm }));
+                    setShowNicheError(false);
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-all ${
+                    isSelected
+                      ? "border-brand bg-brand/[0.16] text-ink shadow-[0_0_0_1px_var(--color-brand),0_0_18px_-8px_var(--color-brand)]"
+                      : "border-line bg-[#0a0a12] text-ink-2 hover:border-brand/50 hover:text-ink"
+                  }`}
+                >
+                  <span aria-hidden>{niche.emoji}</span>
+                  {niche.label}
+                </button>
+              );
+            })}
+          </div>
+          {showNicheError && (
+            <span role="alert" className="text-[11.5px] text-red-300">
+              Selecione um nicho para buscar.
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-[1fr_92px] gap-2.5">

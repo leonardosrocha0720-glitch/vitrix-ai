@@ -15,11 +15,13 @@ export default function ClientesPage() {
   const [progressPercent, setProgressPercent] = useState(0);
   const [results, setResults] = useState<Business[]>([]);
   const [searchNiche, setSearchNiche] = useState("");
+  const [searchNicheId, setSearchNicheId] = useState("");
   const [searchCity, setSearchCity] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSearch = useCallback(async (values: SearchFormValues) => {
     setSearchNiche(values.niche);
+    setSearchNicheId(values.nicheId);
     setSearchCity(values.city);
     setStatus("loading");
     setResults([]);
@@ -131,7 +133,7 @@ export default function ClientesPage() {
                 Faça uma busca para começar
               </p>
               <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">
-                Preencha o nicho e a cidade ao lado. A varredura devolve os negócios da região e
+                Escolha o nicho e a cidade ao lado. A varredura devolve os negócios da região e
                 marca quem ainda não tem site.
               </p>
             </div>
@@ -152,7 +154,12 @@ export default function ClientesPage() {
           )}
 
           {status === "done" && (
-            <ResultsTable results={results} searchNiche={searchNiche} searchCity={searchCity} />
+            <ResultsTable
+              results={results}
+              searchNiche={searchNiche}
+              searchCity={searchCity}
+              nicheId={searchNicheId}
+            />
           )}
         </div>
       </div>
