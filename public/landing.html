@@ -447,6 +447,11 @@
     .price .amount { font-family: var(--font-display); font-size: 60px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
     .price .per { font-size: 15px; color: var(--light-muted); }
     .plan-featured .price .per { color: var(--ink-2); }
+    .price-install .cur { font-size: 17px; white-space: nowrap; }
+    .price-install .amount { font-size: 52px; }
+    .price-install .cents { font-size: 28px; font-weight: 700; letter-spacing: 0; }
+    .price-vista { margin-top: 4px; font-size: 14px; color: var(--ink-2); opacity: 0.8; }
+    .price-vista strong { font-weight: 700; }
     .plan-desc { margin-top: 12px; font-size: 15px; line-height: 1.55; color: var(--light-muted); }
     .plan-featured .plan-desc { color: var(--ink-2); }
     .plan .checks { border-top-color: var(--light-line); flex: 1; align-content: start; }
@@ -787,7 +792,7 @@
         <div class="plans">
           <article class="plan reveal" style="--d:0ms">
             <span class="plan-name">Mensal</span>
-            <div class="price"><span class="cur">R$</span><span class="amount">47</span><span class="per">/mês</span></div>
+            <div class="price"><span class="cur">R$</span><span class="amount">197</span><span class="per">/mês</span></div>
             <p class="plan-desc">Para começar a vender sites agora, sem compromisso de longo prazo.</p>
             <ul class="checks">
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>Acesso completo ao assistente</li>
@@ -801,7 +806,8 @@
           <article class="plan plan-featured reveal" style="--d:120ms">
             <span class="badge-pop">Mais popular</span>
             <span class="plan-name">Vitalício</span>
-            <div class="price"><span class="cur">R$</span><span class="amount">297</span><span class="per">pagamento único</span></div>
+            <div class="price price-install"><span class="cur">12x de R$</span><span class="amount">26<span class="cents">,32</span></span></div>
+            <p class="price-vista">ou <strong>R$&nbsp;247</strong> à vista</p>
             <p class="plan-desc">Pague uma vez e use o assistente para sempre — sem mensalidade.</p>
             <ul class="checks">
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>Tudo do plano Mensal</li>
@@ -812,7 +818,7 @@
               Garantir acesso vitalício
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </a>
-            <p class="plan-note">Equivale a ~6 meses do plano Mensal</p>
+            <p class="plan-note">Economize R$&nbsp;2.117 comparado ao plano Mensal no ano</p>
           </article>
         </div>
       </div>
