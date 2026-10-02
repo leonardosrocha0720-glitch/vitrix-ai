@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/generate-site": ["./public/images/nichos/**/*"],
   },
+  async redirects() {
+    return [
+      {
+        source: "/",
+        destination: "/landing.html",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
