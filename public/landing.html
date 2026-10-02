@@ -764,10 +764,10 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8.5 8.5 0 01-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1121 12z" /><path d="M9 12h.01M12 12h.01M15 12h.01" stroke-width="2.6" /></svg>
             </div>
             <h3>Roteiro de Abordagem no WhatsApp</h3>
-            <p>A sequência de mensagens que abre a conversa, apresenta a proposta e marca a reunião.</p>
+            <p>5 mensagens estruturadas: da abertura ao fechamento da reunião, com o nome do negócio já personalizado.</p>
             <ul class="checks">
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>3 mensagens em sequência testada</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>Nome do negócio e cidade já preenchidos</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>Abertura, apresentação, diagnóstico, proposta e fechamento</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>Nome do negócio já preenchido em cada mensagem</li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>Copiar com um clique, mensagem por mensagem</li>
             </ul>
           </article>
@@ -1178,9 +1178,11 @@
       function stageChat(lead) {
         chatBody.innerHTML = "";
         var messages = [
-          "Olá, boa tarde! Gostaria de falar com o responsável pela " + lead.name + ".",
-          "Trabalho com criação de sites e identifiquei melhorias para vocês captarem mais clientes em " + lead.city + ".",
-          "Já criei uma prévia do site de vocês. Posso te mostrar numa reunião rápida?"
+          "Olá! Gostaria de falar com o responsável pela " + lead.name + ".",
+          "Me apresentando: trabalho com criação de sites e otimização de perfil de empresa no Google.",
+          "Identifiquei alguns pontos de melhoria que podem ajudar a " + lead.name + " a captar mais clientes.",
+          "Já criei uma prévia das melhorias e um site para a " + lead.name + ".",
+          "Qual o melhor horário para agendarmos uma reunião rápida e sem compromisso pra falar sobre?"
         ];
         setStage("chat");
         messages.forEach(function (text, i) {
@@ -1196,7 +1198,7 @@
             if (typing) typing.replaceWith(bubble);
           }, i * 620 + 340);
         });
-        later(function () { stageResults(lead); }, 2000);
+        later(function () { stageResults(lead); }, 3400);
       }
 
       /* Etapa 3 — resultados; fica parada até a pessoa agir */
