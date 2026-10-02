@@ -452,6 +452,10 @@
     .price-install .cents { font-size: 28px; font-weight: 700; letter-spacing: 0; }
     .price-vista { margin-top: 4px; font-size: 14px; color: var(--ink-2); opacity: 0.8; }
     .price-vista strong { font-weight: 700; }
+    .price-anchor { margin-top: 14px; margin-bottom: -8px; font-size: 13px; color: var(--muted); }
+    .price-anchor s { text-decoration: line-through; color: var(--muted); opacity: 0.7; }
+    .plan-featured .price-anchor { color: var(--ink-2); opacity: 0.85; }
+    .plan-featured .price-anchor s { color: var(--ink-2); }
     .plan-desc { margin-top: 12px; font-size: 15px; line-height: 1.55; color: var(--light-muted); }
     .plan-featured .plan-desc { color: var(--ink-2); }
     .plan .checks { border-top-color: var(--light-line); flex: 1; align-content: start; }
@@ -792,6 +796,7 @@
         <div class="plans">
           <article class="plan reveal" style="--d:0ms">
             <span class="plan-name">Mensal</span>
+            <p class="price-anchor">De <s>R$&nbsp;267</s> por</p>
             <div class="price"><span class="cur">R$</span><span class="amount">197</span><span class="per">/mês</span></div>
             <p class="plan-desc">Para começar a vender sites agora, sem compromisso de longo prazo.</p>
             <ul class="checks">
@@ -806,6 +811,7 @@
           <article class="plan plan-featured reveal" style="--d:120ms">
             <span class="badge-pop">Mais popular</span>
             <span class="plan-name">Vitalício</span>
+            <p class="price-anchor">De <s>R$&nbsp;497</s> por</p>
             <div class="price price-install"><span class="cur">12x de R$</span><span class="amount">26<span class="cents">,32</span></span></div>
             <p class="price-vista">ou <strong>R$&nbsp;247</strong> à vista</p>
             <p class="plan-desc">Pague uma vez e use o assistente para sempre — sem mensalidade.</p>
