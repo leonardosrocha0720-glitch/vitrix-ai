@@ -15,13 +15,13 @@ export default function ClientesPage() {
   const [progressPercent, setProgressPercent] = useState(0);
   const [results, setResults] = useState<Business[]>([]);
   const [searchNiche, setSearchNiche] = useState("");
-  const [searchNicheId, setSearchNicheId] = useState("");
+  const [searchState, setSearchState] = useState("");
   const [searchCity, setSearchCity] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSearch = useCallback(async (values: SearchFormValues) => {
     setSearchNiche(values.niche);
-    setSearchNicheId(values.nicheId);
+    setSearchState(values.state);
     setSearchCity(values.city);
     setStatus("loading");
     setResults([]);
@@ -158,7 +158,7 @@ export default function ClientesPage() {
               results={results}
               searchNiche={searchNiche}
               searchCity={searchCity}
-              nicheId={searchNicheId}
+              searchState={searchState}
             />
           )}
         </div>

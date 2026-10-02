@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{NOME_NEGOCIO}} — {{NICHO}} em {{CIDADE}}</title>
+  <meta name="description" content="{{META_DESCRICAO}}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '{{PRIMARY}}',
+            secondary: '{{SECONDARY}}',
+            background: '{{BG}}',
+            textMain: '{{TEXT}}',
+          },
+          fontFamily: {
+            heading: ['Poppins', 'sans-serif'],
+            body: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; color: {{TEXT}}; background: {{BG}}; margin: 0; }
+    h1, h2, h3, h4 { font-family: 'Poppins', sans-serif; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .anim-1 { animation: fadeUp .65s ease both; }
+    .anim-2 { animation: fadeUp .65s .15s ease both; }
+    .anim-3 { animation: fadeUp .65s .30s ease both; }
+    .anim-4 { animation: fadeUp .65s .45s ease both; }
+    .anim-fade { animation: fadeIn .8s ease both; }
+    @media (prefers-reduced-motion: reduce) {
+      .anim-1, .anim-2, .anim-3, .anim-4, .anim-fade { animation: none !important; }
+    }
+    html { scroll-behavior: smooth; }
+    .hero-blob-1 {
+      position: absolute; width: 480px; height: 480px; border-radius: 50%;
+      background: rgba(255,255,255,0.07); filter: blur(60px);
+      top: -80px; right: -120px; pointer-events: none;
+    }
+    .hero-blob-2 {
+      position: absolute; width: 320px; height: 320px; border-radius: 50%;
+      background: rgba(255,255,255,0.05); filter: blur(40px);
+      bottom: 20px; left: -80px; pointer-events: none;
+    }
+    #nav { transition: box-shadow .3s; }
+    #nav.scrolled { box-shadow: 0 2px 16px rgba(0,0,0,.12); }
+    .card-hover { transition: transform .25s, box-shadow .25s; }
+    .card-hover:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(0,0,0,.12); }
+    .btn-primary {
+      background: {{SECONDARY}}; color: #fff; font-family: 'Poppins', sans-serif;
+      font-weight: 600; border-radius: 9999px; display: inline-flex;
+      align-items: center; gap: 8px; transition: filter .2s, transform .15s;
+    }
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-outline {
+      border: 2px solid rgba(255,255,255,.7); color: #fff; font-family: 'Poppins', sans-serif;
+      font-weight: 600; border-radius: 9999px; display: inline-flex;
+      align-items: center; gap: 8px; transition: background .2s;
+    }
+    .btn-outline:hover { background: rgba(255,255,255,.15); }
+    #mobile-menu { max-height: 0; overflow: hidden; transition: max-height .35s ease; }
+    #mobile-menu.open { max-height: 400px; }
+  </style>
+</head>
+<body class="font-body bg-background text-textMain">
+  <header id="nav" class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <span class="font-heading font-bold text-xl text-primary">{{NOME_NEGOCIO}}</span>
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
+        <a href="#sobre" class="hover:text-primary transition-colors">Sobre</a>
+        <a href="#cardapio" class="hover:text-primary transition-colors">Cardápio</a>
+        <a href="#diferenciais" class="hover:text-primary transition-colors">Diferenciais</a>
+        <a href="#depoimentos" class="hover:text-primary transition-colors">Avaliações</a>
+      </nav>
+      <a href="{{CTA_HREF}}" {{CTA_TARGET}} class="btn-primary hidden md:inline-flex px-5 py-2.5 text-sm">
+        {{CTA_ICONE_SVG}}{{CTA_LABEL}}
+      </a>
+      <button id="menu-btn" class="md:hidden p-2 rounded-lg text-primary" aria-label="Menu">
+        <svg id="icon-open" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <svg id="icon-close" class="hidden" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="mobile-menu" class="md:hidden bg-white border-t border-gray-100 px-4">
+      <div class="py-3 flex flex-col gap-3 text-sm font-medium text-gray-600">
+        <a href="#sobre" class="py-2 hover:text-primary transition-colors mobile-link">Sobre</a>
+        <a href="#cardapio" class="py-2 hover:text-primary transition-colors mobile-link">Cardápio</a>
+        <a href="#diferenciais" class="py-2 hover:text-primary transition-colors mobile-link">Diferenciais</a>
+        <a href="#depoimentos" class="py-2 hover:text-primary transition-colors mobile-link">Avaliações</a>
+        <a href="{{CTA_HREF}}" {{CTA_TARGET}} class="btn-primary justify-center py-3 mb-2">{{CTA_LABEL}}</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="relative min-h-screen flex items-center justify-center overflow-hidden" style="background: linear-gradient(135deg, {{PRIMARY}} 60%, {{SECONDARY}})">
+    <div class="hero-blob-1"></div>
+    <div class="hero-blob-2"></div>
+    <div class="relative z-10 max-w-3xl mx-auto px-4 py-32 text-center text-white">
+      {{SELO_GOOGLE}}
+      <h1 class="anim-1 font-heading font-extrabold text-4xl sm:text-5xl md:text-6xl leading-tight mb-5">{{TITULO_HERO}}</h1>
+      <p class="anim-2 text-lg sm:text-xl text-white/85 max-w-xl mx-auto mb-8">{{SUBTITULO_HERO}}</p>
+      <div class="anim-3 flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="{{CTA_HREF}}" {{CTA_TARGET}} class="btn-primary px-8 py-4 text-base">{{CTA_ICONE_SVG}}{{CTA_LABEL}}</a>
+        <a href="#cardapio" class="btn-outline px-8 py-4 text-base">Ver Cardápio</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="sobre" class="py-20 bg-white">
+    <div class="max-w-6xl mx-auto px-4 grid md:grid-cols-2 gap-12 items-center">
+      <div class="anim-fade">
+        <span class="text-xs font-heading font-semibold tracking-widest uppercase mb-3 block" style="color:{{SECONDARY}}">Nossa História</span>
+        <h2 class="font-heading font-bold text-3xl sm:text-4xl text-primary mb-5">{{TITULO_SOBRE}}</h2>
+        <p class="text-gray-600 leading-relaxed mb-5">{{TEXTO_SOBRE_1}}</p>
+        <p class="text-gray-600 leading-relaxed">{{TEXTO_SOBRE_2}}</p>
+      </div>
+      <div class="rounded-2xl overflow-hidden shadow-xl anim-fade">
+        <img src="{{IMAGEM_SOBRE}}" alt="{{NOME_NEGOCIO}}" loading="lazy" class="w-full h-72 object-cover" />
+      </div>
+    </div>
+  </section>
+
+  <section id="cardapio" class="py-20" style="background:{{BG}}">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="text-center mb-12">
+        <span class="text-xs font-heading font-semibold tracking-widest uppercase mb-3 block" style="color:{{SECONDARY}}">O Que Servimos</span>
+        <h2 class="font-heading font-bold text-3xl sm:text-4xl text-primary">{{TITULO_SERVICOS}}</h2>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">{{CARDS_SERVICOS}}</div>
+    </div>
+  </section>
+
+  <section id="diferenciais" class="py-20 bg-white">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="text-center mb-12">
+        <span class="text-xs font-heading font-semibold tracking-widest uppercase mb-3 block" style="color:{{SECONDARY}}">Por Que Escolher</span>
+        <h2 class="font-heading font-bold text-3xl sm:text-4xl text-primary">{{TITULO_DIFERENCIAIS}}</h2>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-8">{{CARDS_DIFERENCIAIS}}</div>
+    </div>
+  </section>
+
+  <section id="depoimentos" class="py-20" style="background:{{BG}}">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="text-center mb-12">
+        <span class="text-xs font-heading font-semibold tracking-widest uppercase mb-3 block" style="color:{{SECONDARY}}">Avaliações</span>
+        <h2 class="font-heading font-bold text-3xl sm:text-4xl text-primary">O Que Dizem os Clientes</h2>
+        {{NOTA_GOOGLE}}
+      </div>
+      <div class="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">{{CARDS_DEPOIMENTOS}}</div>
+    </div>
+  </section>
+
+  <section id="contato" class="py-20" style="background:{{PRIMARY}}">
+    <div class="max-w-2xl mx-auto px-4 text-center text-white">
+      <h2 class="font-heading font-extrabold text-3xl sm:text-4xl mb-4">{{TITULO_CTA}}</h2>
+      <p class="text-white/80 text-lg mb-8">{{SUBTITULO_CTA}}</p>
+      <a href="{{CTA_HREF}}" {{CTA_TARGET}} class="btn-primary px-10 py-4 text-lg">{{CTA_ICONE_SVG}}{{CTA_LABEL}}</a>
+    </div>
+  </section>
+
+  <footer class="py-10 bg-gray-900 text-gray-400">
+    <div class="max-w-6xl mx-auto px-4 grid sm:grid-cols-2 md:grid-cols-3 gap-8 text-sm">
+      <div>
+        <p class="font-heading font-bold text-white text-base mb-2">{{NOME_NEGOCIO}}</p>
+        <p>{{ENDERECO}}</p>
+      </div>
+      <div>
+        <p class="font-heading font-semibold text-white mb-2">Contato</p>
+        <p><a href="{{TEL_HREF}}" class="hover:text-white transition-colors">{{TELEFONE_EXIBICAO}}</a></p>
+        {{HORARIO_FOOTER}}
+      </div>
+      <div>
+        <p class="font-heading font-semibold text-white mb-2">Localização</p>
+        <a href="{{MAPS_URL}}" target="_blank" rel="noopener" class="hover:text-white transition-colors underline">Ver no Google Maps →</a>
+      </div>
+    </div>
+    <p class="text-center text-xs text-gray-600 mt-8">© {{ANO}} {{NOME_NEGOCIO}} · Todos os direitos reservados</p>
+  </footer>
+
+  {{BOTAO_FLUTUANTE}}
+
+  <script>
+    window.addEventListener('scroll', function() {
+      document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 10);
+    });
+    var btn = document.getElementById('menu-btn');
+    var menu = document.getElementById('mobile-menu');
+    var iconOpen = document.getElementById('icon-open');
+    var iconClose = document.getElementById('icon-close');
+    btn.addEventListener('click', function() {
+      var open = menu.classList.toggle('open');
+      iconOpen.classList.toggle('hidden', open);
+      iconClose.classList.toggle('hidden', !open);
+    });
+    document.querySelectorAll('.mobile-link').forEach(function(link) {
+      link.addEventListener('click', function() {
+        menu.classList.remove('open');
+        iconOpen.classList.remove('hidden');
+        iconClose.classList.add('hidden');
+      });
+    });
+  </script>
+</body>
+</html>

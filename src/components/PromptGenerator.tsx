@@ -10,7 +10,10 @@ interface PromptGeneratorProps {
   nome: string;
   nicho: string;
   cidade: string;
+  estado?: string;
   telefone: string;
+  rating?: number;
+  reviewCount?: number;
 }
 
 const AI_STUDIO_URL = "https://aistudio.google.com/prompts/new_chat";
@@ -47,7 +50,15 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-export default function PromptGenerator({ nome, nicho, cidade, telefone: initialPhone }: PromptGeneratorProps) {
+export default function PromptGenerator({
+  nome,
+  nicho,
+  cidade,
+  estado,
+  telefone: initialPhone,
+  rating,
+  reviewCount,
+}: PromptGeneratorProps) {
   const [telefone, setTelefone] = useState(initialPhone);
   const [horario, setHorario] = useState("");
   const [servicos, setServicos] = useState("");
@@ -76,12 +87,15 @@ export default function PromptGenerator({ nome, nicho, cidade, telefone: initial
         nome,
         nicho: nicho || "negócio local",
         cidade,
+        estado,
         telefone: telefone.trim(),
         horario: horario.trim(),
         servicos: servicos.trim(),
         diferencial: diferencial.trim(),
         tipoCTA,
         palette,
+        rating,
+        reviewCount,
       }),
     );
     setCopied(false);
@@ -116,6 +130,7 @@ export default function PromptGenerator({ nome, nicho, cidade, telefone: initial
             {nome}
             {nicho && ` · ${nicho}`}
             {cidade && ` · ${cidade}`}
+            {estado && `/${estado}`}
           </p>
         </div>
         <Link href="/clientes" className="text-[13px] text-muted transition-colors hover:text-ink">
