@@ -3,6 +3,7 @@
 import { useState } from "react";
 import RatingRangeSlider from "@/components/RatingRangeSlider";
 import { NICHES } from "@/lib/niches";
+import { COUNTRIES, DEFAULT_COUNTRY } from "@/lib/countries";
 import type { SearchFormValues, SiteFilter } from "@/types/business";
 
 interface SearchFormProps {
@@ -13,6 +14,7 @@ interface SearchFormProps {
 const DEFAULT_VALUES: SearchFormValues = {
   niche: "",
   nicheId: "",
+  country: DEFAULT_COUNTRY,
   city: "",
   state: "",
   minRating: 3.5,
@@ -48,15 +50,17 @@ export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
 
   // O nicho fica fora do disabled do botão para a mensagem de erro poder aparecer
   const canSubmit = values.city.trim().length > 0;
+  const isBrazil = values.country === DEFAULT_COUNTRY;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || isLoading) return;
-    if (!values.nicheId) {
+    const niche = values.niche.trim();
+    if (!niche) {
       setShowNicheError(true);
       return;
     }
-    onSubmit(values);
+    onSubmit({ ...values, niche });
   };
 
   return (
@@ -103,14 +107,62 @@ export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
               );
             })}
           </div>
+          {/* Nicho livre: sem nicheId, o texto vira o termo de busca. Chip e texto
+              se excluem — o campo só mostra valor quando nenhum chip está ativo. */}
+          <label htmlFor="custom-niche" className={`${labelClass} mt-1.5`}>
+            Outro nicho
+          </label>
+          <input
+            id="custom-niche"
+            type="text"
+            placeholder="Ex: pet shop, farmácia, ótica…"
+            value={values.nicheId ? "" : values.niche}
+            onChange={(e) => {
+              const text = e.target.value;
+              setValues((v) => ({ ...v, nicheId: "", niche: text }));
+              if (text.trim()) setShowNicheError(false);
+            }}
+            className={inputClass}
+          />
           {showNicheError && (
             <span role="alert" className="text-[11.5px] text-red-300">
-              Selecione um nicho para buscar.
+              Selecione ou digite um nicho para buscar.
             </span>
           )}
         </div>
 
-        <div className="grid grid-cols-[1fr_92px] gap-2.5">
+        <div className="grid gap-1.5">
+          <label htmlFor="country" className={labelClass}>
+            País
+          </label>
+          <div className="relative">
+            <select
+              id="country"
+              value={values.country}
+              onChange={(e) => {
+                const country = e.target.value;
+                // UF só existe no Brasil: limpa ao trocar para não vazar pra busca
+                setValues((v) => ({
+                  ...v,
+                  country,
+                  state: country === DEFAULT_COUNTRY ? v.state : "",
+                }));
+              }}
+              className={`${inputClass} cursor-pointer appearance-none pr-9 [color-scheme:dark]`}
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        </div>
+
+        <div className={`grid gap-2.5 ${isBrazil ? "grid-cols-[1fr_92px]" : ""}`}>
           <div className="grid gap-1.5">
             <label htmlFor="city" className={labelClass}>
               Cidade
@@ -126,19 +178,21 @@ export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
             />
           </div>
 
-          <div className="grid gap-1.5">
-            <label htmlFor="state" className={labelClass}>
-              UF
-            </label>
-            <input
-              id="state"
-              type="text"
-              placeholder="PR"
-              value={values.state}
-              onChange={(e) => setValues((v) => ({ ...v, state: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
+          {isBrazil && (
+            <div className="grid gap-1.5">
+              <label htmlFor="state" className={labelClass}>
+                UF
+              </label>
+              <input
+                id="state"
+                type="text"
+                placeholder="PR"
+                value={values.state}
+                onChange={(e) => setValues((v) => ({ ...v, state: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+          )}
         </div>
 
         <div className="grid gap-1.5">

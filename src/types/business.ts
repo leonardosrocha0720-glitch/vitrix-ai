@@ -25,8 +25,9 @@ export type SiteFilter = "all" | "no-site" | "with-site";
 export interface SearchFormValues {
   niche: string; // termo enviado à busca (searchTerm do nicho)
   nicheId: string; // id em src/lib/niches.ts — escolhe o banco de imagens do site
+  country: string; // código em src/lib/countries.ts (gl da SerpAPI)
   city: string;
-  state: string;
+  state: string; // UF — só usado quando o país é Brasil
   minRating: number;
   maxRating: number;
   minReviews: number;

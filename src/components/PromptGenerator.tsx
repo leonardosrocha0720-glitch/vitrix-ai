@@ -50,6 +50,61 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+// Roteiro de abordagem no WhatsApp, em 3 mensagens enviadas em sequência
+function buildOutreachMessages(nome: string, cidade: string) {
+  return [
+    {
+      title: "Abertura",
+      text: `Olá, boa tarde! Gostaria de falar com o responsável pela ${nome}.`,
+    },
+    {
+      title: "Apresentação",
+      text: `Trabalho com criação de sites e otimização de perfis no Google, e identifiquei algumas melhorias que poderiam ajudar vocês a captarem mais clientes pela internet${cidade ? ` em ${cidade}` : ""}.`,
+    },
+    {
+      title: "Pitch",
+      text: "Já criei uma prévia do site de vocês e gostaria de apresentar numa reunião rápida, sem compromisso. Quando seria um bom momento para você?",
+    },
+  ];
+}
+
+// Cada botão tem o próprio estado, então o feedback de um não interfere no outro
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        if (await copyToClipboard(text)) setCopied(true);
+      }}
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-all ${
+        copied
+          ? "border-signal/40 bg-signal/10 text-signal"
+          : "border-brand/40 bg-brand/[0.08] text-brand-2 hover:border-brand/70 hover:bg-brand/[0.16]"
+      }`}
+    >
+      {copied ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+          <rect x="9" y="9" width="11" height="11" rx="2" />
+          <path d="M5 15V5a1 1 0 011-1h10" />
+        </svg>
+      )}
+      {copied ? "Copiado!" : "Copiar"}
+    </button>
+  );
+}
+
 export default function PromptGenerator({
   nome,
   nicho,
@@ -70,6 +125,7 @@ export default function PromptGenerator({
   const resultRef = useRef<HTMLElement>(null);
 
   const palette = PALETTES.find((p) => p.id === paletteId) ?? null;
+  const outreachMessages = buildOutreachMessages(nome, cidade);
   const phoneValid = telefone.replace(/\D/g, "").length >= 10;
   const canGenerate = phoneValid && palette !== null;
 
@@ -281,38 +337,76 @@ export default function PromptGenerator({
         </section>
 
         {prompt && (
-          <section ref={resultRef} className="scroll-mt-6 rounded-2xl border border-line bg-surface">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-[18px] pb-3.5 pt-4">
-              <div className="flex items-center gap-2.5">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-brand-2">
-                  <path d="M12 3l1.9 4.6 4.6 1.9-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
-                </svg>
-                <h2 className="font-display text-[14px] font-bold text-ink">Prompt pronto</h2>
-              </div>
-              <span className="text-[12px] text-muted">Copie e cole no Google AI Studio</span>
-            </div>
-
-            <div className="grid gap-3.5 px-[18px] pb-[18px] pt-4">
-              <textarea
-                readOnly
-                value={prompt}
-                rows={18}
-                onFocus={(e) => e.currentTarget.select()}
-                className={`${inputClass} resize-y font-data text-[12.5px] leading-relaxed`}
-              />
-              <div className="flex flex-col gap-2.5 sm:flex-row sm:justify-end">
-                <a href={AI_STUDIO_URL} target="_blank" rel="noopener noreferrer" className={secondaryButtonClass}>
-                  Abrir Google AI Studio
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-                    <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />
+          <>
+            <section ref={resultRef} className="scroll-mt-6 rounded-2xl border border-line bg-surface">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-[18px] pb-3.5 pt-4">
+                <div className="flex items-center gap-2.5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-brand-2">
+                    <path d="M12 3l1.9 4.6 4.6 1.9-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
                   </svg>
-                </a>
-                <button type="button" onClick={handleCopy} className={primaryButtonClass}>
-                  {copied ? "Copiado!" : "Copiar prompt"}
-                </button>
+                  <h2 className="font-display text-[14px] font-bold text-ink">Prompt pronto</h2>
+                </div>
+                <span className="text-[12px] text-muted">Copie e cole no Google AI Studio</span>
               </div>
-            </div>
-          </section>
+
+              <div className="grid gap-3.5 px-[18px] pb-[18px] pt-4">
+                <textarea
+                  readOnly
+                  value={prompt}
+                  rows={18}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className={`${inputClass} resize-y font-data text-[12.5px] leading-relaxed`}
+                />
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:justify-end">
+                  <a href={AI_STUDIO_URL} target="_blank" rel="noopener noreferrer" className={secondaryButtonClass}>
+                    Abrir Google AI Studio
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                      <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />
+                    </svg>
+                  </a>
+                  <button type="button" onClick={handleCopy} className={primaryButtonClass}>
+                    {copied ? "Copiado!" : "Copiar prompt"}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-line bg-surface">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-[18px] pb-3.5 pt-4">
+                <div className="flex items-center gap-2.5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-brand-2">
+                    <path d="M21 12a8.5 8.5 0 01-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1121 12z" />
+                  </svg>
+                  <h2 className="font-display text-[14px] font-bold text-ink">
+                    Roteiro de Prospecção no WhatsApp
+                  </h2>
+                </div>
+                <span className="text-[12px] text-muted">Envie uma mensagem por vez, nesta ordem</span>
+              </div>
+
+              <ol className="grid gap-2.5 px-[18px] pb-[18px] pt-4">
+                {outreachMessages.map((msg, i) => (
+                  <li
+                    key={msg.title}
+                    className="grid gap-2.5 rounded-xl border border-line bg-[#0a0a12] p-3.5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-brand/40 bg-brand/[0.12] font-data text-[11px] font-bold tabular-nums text-brand-2">
+                          {i + 1}
+                        </span>
+                        <span className="truncate font-display text-[13px] font-bold text-ink">
+                          Mensagem {i + 1} — {msg.title}
+                        </span>
+                      </div>
+                      <CopyButton text={msg.text} />
+                    </div>
+                    <p className="text-[13.5px] leading-relaxed text-ink-2">{msg.text}</p>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          </>
         )}
       </div>
     </div>

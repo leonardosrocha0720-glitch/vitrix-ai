@@ -30,6 +30,7 @@ export interface PlacesPage {
 export async function* fetchPlacesPages(
   textQuery: string,
   apiKey: string,
+  locale: { gl: string; hl: string },
 ): AsyncGenerator<PlacesPage> {
   let start = 0;
 
@@ -38,8 +39,8 @@ export async function* fetchPlacesPages(
       engine: "google_maps",
       q: textQuery,
       type: "search",
-      hl: "pt",
-      gl: "br",
+      hl: locale.hl,
+      gl: locale.gl,
       api_key: apiKey,
       ...(start > 0 ? { start: String(start) } : {}),
     });

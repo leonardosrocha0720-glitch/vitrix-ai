@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { fetchPlacesPages } from "@/lib/googlePlaces";
+import { DEFAULT_COUNTRY, getCountry } from "@/lib/countries";
 import { mapPlaceToBusiness } from "@/lib/mapBusiness";
 import type { Business, SearchEvent, SearchFormValues } from "@/types/business";
 
@@ -43,15 +44,24 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        const location = params.state?.trim()
-          ? `${params.city}, ${params.state}`
-          : params.city;
+        const country = getCountry(params.country);
+        const isBrazil = country.code === DEFAULT_COUNTRY;
+        // Fora do Brasil não há UF; o nome do país desambigua cidades homônimas
+        // (ex.: Córdoba na Argentina e na Espanha), já que o gl só dá preferência.
+        const location = isBrazil
+          ? params.state?.trim()
+            ? `${params.city}, ${params.state}`
+            : params.city
+          : `${params.city}, ${country.label}`;
         const textQuery = `${params.niche} em ${location}`;
 
         send({ type: "progress", message: `Buscando "${textQuery}"...`, page: 0 });
 
         const allBusinesses: Business[] = [];
-        for await (const { page, places } of fetchPlacesPages(textQuery, apiKey)) {
+        for await (const { page, places } of fetchPlacesPages(textQuery, apiKey, {
+          gl: country.code,
+          hl: country.hl,
+        })) {
           allBusinesses.push(...places.map(mapPlaceToBusiness));
           send({
             type: "progress",
