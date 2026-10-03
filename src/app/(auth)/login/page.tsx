@@ -71,6 +71,12 @@ export default function LoginPage() {
               className="w-full bg-[#1A1A24] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
               placeholder="••••••••"
             />
+            <Link
+              href="/recuperar-senha"
+              className="mt-2 inline-block text-sm text-purple-400 hover:text-purple-300"
+            >
+              Primeiro acesso ou esqueceu a senha?
+            </Link>
           </div>
           <button
             type="submit"

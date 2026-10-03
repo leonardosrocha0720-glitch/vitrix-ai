@@ -28,11 +28,19 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
-  // Rotas públicas: login, register, callback, /landing.html (página de vendas),
-  // /s/* (sites publicados) e /api/webhook/* — webhooks vêm de servidores externos,
-  // sem sessão Supabase. Esses endpoints fazem a própria autenticação via secret
-  // (APLIFAY_WEBHOOK_SECRET).
-  const publicPaths = ["/login", "/register", "/auth/callback", "/landing.html", "/api/webhook/"];
+  // Rotas públicas: login, register, callback, /auth/confirm (links de e-mail),
+  // /recuperar-senha, /landing.html (página de vendas), /s/* (sites publicados)
+  // e /api/webhook/* — webhooks vêm de servidores externos, sem sessão Supabase.
+  // Esses endpoints fazem a própria autenticação via secret (APLIFAY_WEBHOOK_SECRET).
+  const publicPaths = [
+    "/login",
+    "/register",
+    "/auth/callback",
+    "/auth/confirm",
+    "/recuperar-senha",
+    "/landing.html",
+    "/api/webhook/",
+  ];
   const isPublic = publicPaths.some((p) => pathname.startsWith(p)) || pathname.startsWith("/s/");
 
   if (!user && !isPublic) {

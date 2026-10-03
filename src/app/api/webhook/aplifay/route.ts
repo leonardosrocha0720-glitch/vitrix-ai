@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import type { User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -15,9 +16,10 @@ const creditsMensalPro = () => parseInt(process.env.CREDITS_MENSAL_PRO ?? "100",
  * mais confiável para o menos confiável.
  */
 function getCreditsByPlan(offerName: string, offerCode: string, amount: number): number {
-  // 1) Código da oferta (exato e estável). Definir nas env vars quando conhecido.
-  const codeVitalicio = process.env.APLIFAY_OFFER_CODE_VITALICIO?.trim();
-  const codeMensal = process.env.APLIFAY_OFFER_CODE_MENSAL?.trim();
+  // 1) Código da oferta (exato e estável). Padrão = ofertas dos links de checkout
+  // da landing (?offer=...); as env vars sobrescrevem se as ofertas mudarem.
+  const codeVitalicio = process.env.APLIFAY_OFFER_CODE_VITALICIO?.trim() || "GYGN0CZ";
+  const codeMensal = process.env.APLIFAY_OFFER_CODE_MENSAL?.trim() || "U0FG943";
 
   if (codeVitalicio && offerCode && offerCode === codeVitalicio) {
     console.log(`[Aplifay Webhook] Plano por offerCode (${offerCode}): vitalício`);
@@ -39,8 +41,9 @@ function getCreditsByPlan(offerName: string, offerCode: string, amount: number):
     return creditsMensalPro();
   }
 
-  // 3) Valor pago. Acima do limiar tratamos como vitalício.
-  const limiar = parseInt(process.env.APLIFAY_VALOR_MIN_VITALICIO ?? "300", 10);
+  // 3) Valor pago. Acima do limiar tratamos como vitalício. O padrão fica entre
+  // o Mensal (R$ 197) e o Vitalício à vista (R$ 247).
+  const limiar = parseInt(process.env.APLIFAY_VALOR_MIN_VITALICIO ?? "220", 10);
   if (amount > 0) {
     const plano = amount >= limiar ? "vitalício" : "mensal";
     console.warn(
@@ -113,6 +116,28 @@ function parseAplifayPayload(body: Record<string, unknown>): ParsedPayload | nul
   return null;
 }
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+// listUsers() devolve só a primeira página (50 contas por padrão); sem paginar,
+// a partir da 51ª conta um cliente que renova não é encontrado e o webhook falha.
+async function findUserByEmail(supabase: AdminClient, email: string): Promise<User | null> {
+  const perPage = 1000;
+  for (let page = 1; page <= 100; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const found = data.users.find((u) => u.email?.toLowerCase() === email);
+    if (found) return found;
+    if (data.users.length < perPage) return null;
+  }
+  return null;
+}
+
+// Link de acesso: o comprador entra por /auth/confirm e cria a senha em /definir-senha.
+function accessRedirectUrl(): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vitrix-ai.vercel.app";
+  return `${appUrl}/auth/confirm`;
+}
+
 // Só libera acesso em pagamento confirmado.
 // Com "event" presente exigimos TRANSACTION_PAID — TRANSACTION_CREATED também
 // pode vir com status COMPLETED, então o evento manda.
@@ -132,22 +157,27 @@ export async function POST(req: NextRequest) {
 
     // A ApplyFy envia o token de validação no CORPO (campo "token").
     // Query string e headers ficam como alternativas aceitas.
-    const secret = process.env.APLIFAY_WEBHOOK_SECRET;
-    if (secret && secret !== "trocar_depois") {
-      const candidates = [
-        typeof body.token === "string" ? body.token : null,
-        req.nextUrl.searchParams.get("secret"),
-        req.nextUrl.searchParams.get("token"),
-        req.headers.get("x-aplifay-secret"),
-        req.headers.get("x-applyfy-token"),
-        req.headers.get("x-webhook-token"),
-        req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null,
-      ].filter((v): v is string => Boolean(v));
+    // Sem secret configurado o endpoint recusa tudo: aberto, qualquer pessoa
+    // criaria contas com créditos mandando só um e-mail.
+    const secret = process.env.APLIFAY_WEBHOOK_SECRET?.trim();
+    if (!secret || secret === "trocar_depois") {
+      console.error("[Aplifay Webhook] APLIFAY_WEBHOOK_SECRET não configurado. Requisição recusada.");
+      return Response.json({ error: "Webhook não configurado" }, { status: 500 });
+    }
 
-      if (!candidates.includes(secret)) {
-        console.warn("[Aplifay Webhook] Token de validação inválido. Requisição recusada.");
-        return Response.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    const candidates = [
+      typeof body.token === "string" ? body.token : null,
+      req.nextUrl.searchParams.get("secret"),
+      req.nextUrl.searchParams.get("token"),
+      req.headers.get("x-aplifay-secret"),
+      req.headers.get("x-applyfy-token"),
+      req.headers.get("x-webhook-token"),
+      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null,
+    ].filter((v): v is string => Boolean(v));
+
+    if (!candidates.includes(secret)) {
+      console.warn("[Aplifay Webhook] Token de validação inválido. Requisição recusada.");
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const parsed = parseAplifayPayload(body);
@@ -167,8 +197,7 @@ export async function POST(req: NextRequest) {
     const credits = getCreditsByPlan(offerName, offerCode, amount);
     const supabase = createAdminClient();
 
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find((u) => u.email === email);
+    const existingUser = await findUserByEmail(supabase, email);
 
     let userId: string;
 
@@ -190,19 +219,35 @@ export async function POST(req: NextRequest) {
         .eq("id", userId);
 
       console.log(`[Aplifay Webhook] +${credits} créditos para ${email}. Total: ${currentCredits + credits}`);
+
+      // Nunca entrou (ex.: comprou antes do envio de e-mail existir, ou o convite
+      // venceu): reenvia o acesso como redefinição de senha.
+      if (!existingUser.last_sign_in_at) {
+        const { error: resendError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: accessRedirectUrl(),
+        });
+        if (resendError) {
+          console.warn(`[Aplifay Webhook] Falha ao reenviar acesso para ${email}:`, resendError.message);
+        } else {
+          console.log(`[Aplifay Webhook] Link de acesso reenviado para ${email} (nunca fez login).`);
+        }
+      }
     } else {
-      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email,
-        email_confirm: true,
+      // inviteUserByEmail cria a conta E envia o e-mail de acesso.
+      // (generateLink, usado antes, só gera o link — nenhum e-mail saía.)
+      const { data: invited, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+        redirectTo: accessRedirectUrl(),
       });
 
-      if (createError || !newUser?.user) {
-        console.error("[Aplifay Webhook] Erro ao criar usuário:", createError);
+      if (inviteError || !invited?.user) {
+        // 500 faz a ApplyFy tentar de novo; na nova tentativa a conta pode já
+        // existir e cai no ramo acima, que reenvia o acesso.
+        console.error("[Aplifay Webhook] Erro ao convidar usuário:", inviteError);
         return Response.json({ error: "Erro ao criar usuário" }, { status: 500 });
       }
 
-      userId = newUser.user.id;
-      console.log(`[Aplifay Webhook] Novo usuário criado: ${email} (${userId})`);
+      userId = invited.user.id;
+      console.log(`[Aplifay Webhook] Novo usuário convidado: ${email} (${userId}) — e-mail de acesso enviado.`);
 
       // Aguarda o trigger on_auth_user_created montar o perfil
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -220,19 +265,6 @@ export async function POST(req: NextRequest) {
         .eq("id", userId);
 
       console.log(`[Aplifay Webhook] Perfil de ${email} com ${baseCredits + credits} créditos`);
-
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vitrix-ai.vercel.app";
-      const { error: magicLinkError } = await supabase.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-        options: { redirectTo: `${appUrl}/dashboard` },
-      });
-
-      if (magicLinkError) {
-        console.warn("[Aplifay Webhook] Erro ao gerar magic link:", magicLinkError);
-      } else {
-        console.log(`[Aplifay Webhook] Magic link enviado para ${email}`);
-      }
     }
 
     return Response.json({
