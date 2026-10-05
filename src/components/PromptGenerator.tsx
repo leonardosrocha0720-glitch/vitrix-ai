@@ -50,20 +50,24 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-// Roteiro de abordagem no WhatsApp, em 3 mensagens enviadas em sequência
+// Roteiro de abordagem no WhatsApp, em 4 mensagens enviadas em sequência
 function buildOutreachMessages(nome: string, cidade: string) {
   return [
     {
       title: "Abertura",
-      text: `Olá, boa tarde! Gostaria de falar com o responsável pela ${nome}.`,
+      text: `Oi, gostaria de falar com o responsável pela ${nome}.`,
     },
     {
       title: "Apresentação",
       text: `Trabalho com criação de sites e otimização de perfis no Google, e identifiquei algumas melhorias que poderiam ajudar vocês a captarem mais clientes pela internet${cidade ? ` em ${cidade}` : ""}.`,
     },
     {
-      title: "Pitch",
-      text: "Já criei uma prévia do site de vocês e gostaria de apresentar numa reunião rápida, sem compromisso. Quando seria um bom momento para você?",
+      title: "Proposta de valor",
+      text: `Eu criei uma prévia de um site para ${nome} e algumas ideias de como melhorar a captação de clientes através do Google.`,
+    },
+    {
+      title: "Fechamento",
+      text: "Podemos agendar uma reunião rápida de 15 minutos sem compromisso para eu apresentar as melhorias?",
     },
   ];
 }
@@ -359,7 +363,7 @@ export default function PromptGenerator({
                 />
                 <div className="flex flex-col gap-2.5 sm:flex-row sm:justify-end">
                   <a href={AI_STUDIO_URL} target="_blank" rel="noopener noreferrer" className={secondaryButtonClass}>
-                    Abrir Google AI Studio
+                    Criar Site
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                       <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />
                     </svg>
