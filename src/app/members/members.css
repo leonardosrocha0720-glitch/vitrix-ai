@@ -1,0 +1,91 @@
+/* Estilos da Área de Membros. Escopados em .members-root para não vazar no app. */
+
+.members-root {
+  --bg-base: #0a0a0f;
+  --bg-surface: #12101a;
+  --bg-hover: #1c1828;
+  --accent: #7c3aed;
+  --accent-bright: #a855f7;
+  --accent-glow: rgba(124, 58, 237, 0.3);
+  --text-primary: #f0ebf8;
+  --text-secondary: #9b8faf;
+  --border: rgba(124, 58, 237, 0.2);
+
+  /* Cobre o grid/glow ambiente que o layout raiz desenha atrás de tudo. */
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+.members-title {
+  font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.members-gradient-text {
+  background: linear-gradient(135deg, var(--accent-bright), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Entrada das seções. Nome próprio: globals.css já define um fadeInUp. */
+@keyframes membersFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.members-fade-in {
+  animation: membersFadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* Skeleton dos thumbnails. */
+@keyframes membersShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.members-skeleton {
+  background: linear-gradient(90deg, #12101a 0%, #1c1828 50%, #12101a 100%);
+  background-size: 200% 100%;
+  animation: membersShimmer 1.4s linear infinite;
+}
+
+/* Card: o scale vive aqui para combinar com o glow e respeitar reduced motion. */
+.members-card {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+.members-card:hover,
+.members-card:focus-visible {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px var(--accent-glow);
+  border-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .members-fade-in,
+  .members-skeleton {
+    animation: none;
+  }
+  .members-card:hover,
+  .members-card:focus-visible {
+    transform: none;
+  }
+}

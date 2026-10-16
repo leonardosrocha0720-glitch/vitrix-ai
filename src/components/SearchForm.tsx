@@ -1,36 +1,65 @@
 "use client";
 
 import { useState } from "react";
-import RatingRangeSlider from "@/components/RatingRangeSlider";
-import { NICHES } from "@/lib/niches";
-import { COUNTRIES, DEFAULT_COUNTRY } from "@/lib/countries";
-import type { SearchFormValues, SiteFilter } from "@/types/business";
 
-interface SearchFormProps {
-  onSubmit: (values: SearchFormValues) => void;
-  isLoading: boolean;
+// A busca não passa mais pela SerpAPI: o formulário monta a URL do Google Maps
+// e abre em nova aba. /api/search continua no código, só não é chamada daqui.
+
+export const NICHE_OPTIONS = [
+  "Restaurante",
+  "Hamburguer",
+  "Pizza",
+  "Barbearia",
+  "Academia",
+  "Clínica",
+  "Advocacia",
+  "Imobiliária",
+  "Pet Shop",
+  "Mecânica",
+] as const;
+
+export const OTHER_NICHE = "Outro";
+
+const COUNTRY_OPTIONS = ["Brasil", "Portugal", "EUA"] as const;
+
+interface MapsSearchValues {
+  niche: string;
+  customNiche: string; // usado só quando o nicho é "Outro"
+  businessType: string;
+  country: (typeof COUNTRY_OPTIONS)[number];
+  state: string;
+  city: string;
 }
 
-const DEFAULT_VALUES: SearchFormValues = {
+const DEFAULT_VALUES: MapsSearchValues = {
   niche: "",
-  nicheId: "",
-  country: DEFAULT_COUNTRY,
-  city: "",
+  customNiche: "",
+  businessType: "",
+  country: "Brasil",
   state: "",
-  minRating: 3.5,
-  maxRating: 4.5,
-  minReviews: 10,
-  siteFilter: "all",
-  maxResults: 20,
+  city: "",
 };
 
-const SITE_FILTER_OPTIONS: { value: SiteFilter; label: string }[] = [
-  { value: "all", label: "Todos" },
-  { value: "no-site", label: "Sem site" },
-  { value: "with-site", label: "Com site" },
-];
-
-const RESULT_OPTIONS = [10, 20, 30, 50];
+/** Ex.: barbearia, Guarapuava, Paraná, Brasil → .../maps/search/barbearia+em+Guarapuava+Paran%C3%A1+Brasil */
+export function buildMapsSearchUrl({
+  niche,
+  businessType,
+  city,
+  state,
+  country,
+}: {
+  niche: string;
+  businessType?: string;
+  city: string;
+  state?: string;
+  country?: string;
+}): string {
+  const parts = [businessType, niche.toLowerCase(), "em", city, state, country]
+    .map((p) => p?.trim())
+    .filter((p): p is string => Boolean(p))
+    .map(encodeURIComponent);
+  return `https://www.google.com/maps/search/${parts.join("+")}`;
+}
 
 const TIPS = [
   "Nota alta com poucas avaliações indica negócio bom e pouco visível — o argumento de venda já vem pronto.",
@@ -38,29 +67,105 @@ const TIPS = [
   "Cidade específica rende mais que região ampla. O dono reconhece a rua no site gerado.",
 ];
 
-const labelClass = "font-data text-[9.5px] uppercase tracking-[0.14em] text-muted";
+export const labelClass = "font-data text-[9.5px] uppercase tracking-[0.14em] text-muted";
 
-const inputClass =
+export const inputClass =
   "w-full rounded-[10px] border border-line bg-[#0a0a12] px-3 py-2.5 text-[13.5px] text-ink outline-none transition-all placeholder:text-[#565270] focus:border-brand/60 focus:ring-[3px] focus:ring-brand/15";
 
-export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
-  const [values, setValues] = useState<SearchFormValues>(DEFAULT_VALUES);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+export const selectClass = `${inputClass} cursor-pointer appearance-none pr-9 [color-scheme:dark]`;
+
+export function SelectChevron() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+/** Select de nicho com "Outro" abrindo um campo livre. Compartilhado com o formulário de site. */
+export function NicheSelect({
+  id,
+  niche,
+  customNiche,
+  onNicheChange,
+  onCustomNicheChange,
+  error,
+}: {
+  id: string;
+  niche: string;
+  customNiche: string;
+  onNicheChange: (value: string) => void;
+  onCustomNicheChange: (value: string) => void;
+  /** Mensagem de erro; vazio esconde. */
+  error?: string;
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <label htmlFor={id} className={labelClass}>
+        Nicho
+      </label>
+      <div className="relative">
+        <select
+          id={id}
+          value={niche}
+          onChange={(e) => onNicheChange(e.target.value)}
+          className={`${selectClass} ${niche ? "" : "text-[#565270]"}`}
+        >
+          <option value="" disabled>
+            Selecione um nicho
+          </option>
+          {[...NICHE_OPTIONS, OTHER_NICHE].map((n) => (
+            <option key={n} value={n} className="bg-surface-2 text-ink">
+              {n}
+            </option>
+          ))}
+        </select>
+        <SelectChevron />
+      </div>
+
+      {niche === OTHER_NICHE && (
+        <input
+          type="text"
+          aria-label="Qual nicho?"
+          placeholder="Qual nicho? Ex: farmácia, ótica…"
+          value={customNiche}
+          onChange={(e) => onCustomNicheChange(e.target.value)}
+          className={`${inputClass} mt-1`}
+        />
+      )}
+
+      {error && (
+        <span role="alert" className="text-[11.5px] text-red-300">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export default function SearchForm() {
+  const [values, setValues] = useState<MapsSearchValues>(DEFAULT_VALUES);
   const [showNicheError, setShowNicheError] = useState(false);
 
-  // O nicho fica fora do disabled do botão para a mensagem de erro poder aparecer
+  const isOther = values.niche === OTHER_NICHE;
+  const niche = (isOther ? values.customNiche : values.niche).trim();
   const canSubmit = values.city.trim().length > 0;
-  const isBrazil = values.country === DEFAULT_COUNTRY;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || isLoading) return;
-    const niche = values.niche.trim();
+    if (!canSubmit) return;
     if (!niche) {
       setShowNicheError(true);
       return;
     }
-    onSubmit({ ...values, niche });
+    const url = buildMapsSearchUrl({
+      niche,
+      businessType: values.businessType,
+      city: values.city,
+      state: values.state,
+      country: values.country,
+    });
+    window.open(url, "_blank");
   };
 
   return (
@@ -79,56 +184,39 @@ export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
       </div>
 
       <div className="grid gap-3.5 px-[18px] pb-[18px] pt-4">
+        <NicheSelect
+          id="niche"
+          niche={values.niche}
+          customNiche={values.customNiche}
+          onNicheChange={(next) => {
+            setValues((v) => ({ ...v, niche: next }));
+            if (next && next !== OTHER_NICHE) setShowNicheError(false);
+          }}
+          onCustomNicheChange={(text) => {
+            setValues((v) => ({ ...v, customNiche: text }));
+            if (text.trim()) setShowNicheError(false);
+          }}
+          error={
+            showNicheError
+              ? isOther
+                ? "Digite o nicho que quer buscar."
+                : "Selecione um nicho para buscar."
+              : ""
+          }
+        />
+
         <div className="grid gap-1.5">
-          <span id="niche-label" className={labelClass}>
-            Nicho de negócio
-          </span>
-          <div role="group" aria-labelledby="niche-label" className="flex flex-wrap gap-1.5">
-            {NICHES.map((niche) => {
-              const isSelected = values.nicheId === niche.id;
-              return (
-                <button
-                  key={niche.id}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => {
-                    setValues((v) => ({ ...v, nicheId: niche.id, niche: niche.searchTerm }));
-                    setShowNicheError(false);
-                  }}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-all ${
-                    isSelected
-                      ? "border-brand bg-brand/[0.16] text-ink shadow-[0_0_0_1px_var(--color-brand),0_0_18px_-8px_var(--color-brand)]"
-                      : "border-line bg-[#0a0a12] text-ink-2 hover:border-brand/50 hover:text-ink"
-                  }`}
-                >
-                  <span aria-hidden>{niche.emoji}</span>
-                  {niche.label}
-                </button>
-              );
-            })}
-          </div>
-          {/* Nicho livre: sem nicheId, o texto vira o termo de busca. Chip e texto
-              se excluem — o campo só mostra valor quando nenhum chip está ativo. */}
-          <label htmlFor="custom-niche" className={`${labelClass} mt-1.5`}>
-            Outro nicho
+          <label htmlFor="business-type" className={labelClass}>
+            Tipo de negócio <span className="normal-case tracking-normal text-[#565270]">(opcional)</span>
           </label>
           <input
-            id="custom-niche"
+            id="business-type"
             type="text"
-            placeholder="Ex: pet shop, farmácia, ótica…"
-            value={values.nicheId ? "" : values.niche}
-            onChange={(e) => {
-              const text = e.target.value;
-              setValues((v) => ({ ...v, nicheId: "", niche: text }));
-              if (text.trim()) setShowNicheError(false);
-            }}
+            placeholder="Ex: sem site, pequeno, recém aberto"
+            value={values.businessType}
+            onChange={(e) => setValues((v) => ({ ...v, businessType: e.target.value }))}
             className={inputClass}
           />
-          {showNicheError && (
-            <span role="alert" className="text-[11.5px] text-red-300">
-              Selecione ou digite um nicho para buscar.
-            </span>
-          )}
         </div>
 
         <div className="grid gap-1.5">
@@ -139,165 +227,62 @@ export default function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
             <select
               id="country"
               value={values.country}
-              onChange={(e) => {
-                const country = e.target.value;
-                // UF só existe no Brasil: limpa ao trocar para não vazar pra busca
-                setValues((v) => ({
-                  ...v,
-                  country,
-                  state: country === DEFAULT_COUNTRY ? v.state : "",
-                }));
-              }}
-              className={`${inputClass} cursor-pointer appearance-none pr-9 [color-scheme:dark]`}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, country: e.target.value as MapsSearchValues["country"] }))
+              }
+              className={selectClass}
             >
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.label}
+              {COUNTRY_OPTIONS.map((c) => (
+                <option key={c} value={c} className="bg-surface-2 text-ink">
+                  {c}
                 </option>
               ))}
             </select>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
+            <SelectChevron />
           </div>
-        </div>
-
-        <div className={`grid gap-2.5 ${isBrazil ? "grid-cols-[1fr_92px]" : ""}`}>
-          <div className="grid gap-1.5">
-            <label htmlFor="city" className={labelClass}>
-              Cidade
-            </label>
-            <input
-              id="city"
-              type="text"
-              required
-              placeholder="Guarapuava"
-              value={values.city}
-              onChange={(e) => setValues((v) => ({ ...v, city: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-
-          {isBrazil && (
-            <div className="grid gap-1.5">
-              <label htmlFor="state" className={labelClass}>
-                UF
-              </label>
-              <input
-                id="state"
-                type="text"
-                placeholder="PR"
-                value={values.state}
-                onChange={(e) => setValues((v) => ({ ...v, state: e.target.value }))}
-                className={inputClass}
-              />
-            </div>
-          )}
         </div>
 
         <div className="grid gap-1.5">
-          <label htmlFor="maxResults" className={labelClass}>
-            Resultados
+          <label htmlFor="state" className={labelClass}>
+            Estado
           </label>
-          <select
-            id="maxResults"
-            value={values.maxResults}
-            onChange={(e) => setValues((v) => ({ ...v, maxResults: Number(e.target.value) }))}
+          <input
+            id="state"
+            type="text"
+            placeholder="Paraná"
+            value={values.state}
+            onChange={(e) => setValues((v) => ({ ...v, state: e.target.value }))}
             className={inputClass}
-          >
-            {RESULT_OPTIONS.map((n) => (
-              <option key={n} value={n} className="bg-surface-2 text-ink">
-                {n} resultados
-              </option>
-            ))}
-          </select>
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <label htmlFor="city" className={labelClass}>
+            Cidade
+          </label>
+          <input
+            id="city"
+            type="text"
+            required
+            placeholder="Guarapuava"
+            value={values.city}
+            onChange={(e) => setValues((v) => ({ ...v, city: e.target.value }))}
+            className={inputClass}
+          />
         </div>
 
         <button
-          type="button"
-          onClick={() => setShowAdvanced((s) => !s)}
-          className="flex items-center justify-between font-data text-[9.5px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
-        >
-          Filtros avançados
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? "rotate-180" : ""}`}
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-
-        {showAdvanced && (
-          <div className="grid gap-4 rounded-xl border border-line-soft bg-[#0a0a12] p-3">
-            <RatingRangeSlider
-              min={values.minRating}
-              max={values.maxRating}
-              onChange={(minRating, maxRating) => setValues((v) => ({ ...v, minRating, maxRating }))}
-            />
-
-            <div className="grid gap-1.5">
-              <label htmlFor="minReviews" className={labelClass}>
-                Mínimo de avaliações
-              </label>
-              <input
-                id="minReviews"
-                type="number"
-                min={0}
-                value={values.minReviews}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, minReviews: Math.max(0, Number(e.target.value)) }))
-                }
-                className={`${inputClass} font-data tabular-nums`}
-              />
-            </div>
-
-            <div className="grid gap-1.5">
-              <span className={labelClass}>Filtrar por site</span>
-              <div className="inline-flex rounded-[10px] border border-line bg-surface p-1">
-                {SITE_FILTER_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setValues((v) => ({ ...v, siteFilter: opt.value }))}
-                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-all ${
-                      values.siteFilter === opt.value
-                        ? "bg-gradient-to-br from-brand-2 to-brand text-white shadow-[0_6px_14px_-8px_rgba(139,92,246,1)]"
-                        : "text-muted hover:text-ink"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <button
           type="submit"
-          disabled={!canSubmit || isLoading}
+          disabled={!canSubmit}
           className="mt-1 flex w-full items-center justify-center gap-2.5 rounded-[11px] bg-gradient-to-br from-brand-2 via-brand to-[#6d28d9] px-4 py-3 font-display text-[13.5px] font-bold tracking-[0.01em] text-white shadow-[0_0_0_1px_rgba(192,132,252,0.3),0_12px_26px_-12px_rgba(139,92,246,1)] transition-all hover:-translate-y-px hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(192,132,252,0.5),0_18px_34px_-14px_rgba(139,92,246,1)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:brightness-100"
         >
-          {isLoading ? (
-            <>
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              Varrendo a cidade...
-            </>
-          ) : (
-            <>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                <path d="M12 19V5" />
-                <path d="M5 12l7-7 7 7" />
-              </svg>
-              Iniciar prospecção
-            </>
-          )}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.2-3.2" />
+          </svg>
+          Buscar Negócios
         </button>
+        <p className="-mt-1.5 text-center text-[11.5px] text-muted">Abre o Google Maps em uma nova aba</p>
 
         <div className="grid gap-2 border-t border-line-soft pt-3">
           <p className="font-data text-[9.5px] uppercase tracking-[0.14em] text-muted">
