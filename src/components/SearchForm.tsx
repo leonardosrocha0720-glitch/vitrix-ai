@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BrazilStateCity from "@/components/BrazilStateCity";
 
 // A busca não passa mais pela SerpAPI: o formulário monta a URL do Google Maps
 // e abre em nova aba. /api/search continua no código, só não é chamada daqui.
@@ -228,7 +229,7 @@ export default function SearchForm() {
               id="country"
               value={values.country}
               onChange={(e) =>
-                setValues((v) => ({ ...v, country: e.target.value as MapsSearchValues["country"] }))
+                setValues((v) => ({ ...v, country: e.target.value as MapsSearchValues["country"], state: "", city: "" }))
               }
               className={selectClass}
             >
@@ -242,34 +243,45 @@ export default function SearchForm() {
           </div>
         </div>
 
-        <div className="grid gap-1.5">
-          <label htmlFor="state" className={labelClass}>
-            Estado
-          </label>
-          <input
-            id="state"
-            type="text"
-            placeholder="Paraná"
-            value={values.state}
-            onChange={(e) => setValues((v) => ({ ...v, state: e.target.value }))}
-            className={inputClass}
+        {values.country === "Brasil" ? (
+          <BrazilStateCity
+            idPrefix="search"
+            state={values.state}
+            city={values.city}
+            onChange={({ state, city }) => setValues((v) => ({ ...v, state, city }))}
           />
-        </div>
+        ) : (
+          <>
+            <div className="grid gap-1.5">
+              <label htmlFor="state" className={labelClass}>
+                Estado
+              </label>
+              <input
+                id="state"
+                type="text"
+                placeholder="Lisboa"
+                value={values.state}
+                onChange={(e) => setValues((v) => ({ ...v, state: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
 
-        <div className="grid gap-1.5">
-          <label htmlFor="city" className={labelClass}>
-            Cidade
-          </label>
-          <input
-            id="city"
-            type="text"
-            required
-            placeholder="Guarapuava"
-            value={values.city}
-            onChange={(e) => setValues((v) => ({ ...v, city: e.target.value }))}
-            className={inputClass}
-          />
-        </div>
+            <div className="grid gap-1.5">
+              <label htmlFor="city" className={labelClass}>
+                Cidade
+              </label>
+              <input
+                id="city"
+                type="text"
+                required
+                placeholder="Porto"
+                value={values.city}
+                onChange={(e) => setValues((v) => ({ ...v, city: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+          </>
+        )}
 
         <button
           type="submit"

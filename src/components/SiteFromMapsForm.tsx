@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import BrazilStateCity from "@/components/BrazilStateCity";
+import { stateName } from "@/lib/brazil";
 import { NicheSelect, OTHER_NICHE, inputClass, labelClass } from "@/components/SearchForm";
 
 // Ponte entre a busca no Google Maps e /gerar-prompt: o usuário copia os dados da
@@ -50,7 +52,7 @@ export default function SiteFromMapsForm() {
       nome: name,
       nicho: niche.toLowerCase(),
       cidade: city,
-      estado: values.state.trim(),
+      estado: stateName(values.state),
       telefone: values.phone.trim(),
     });
     router.push(`/gerar-prompt?${params.toString()}`);
@@ -127,39 +129,14 @@ export default function SiteFromMapsForm() {
           />
         </div>
 
-        <div className="grid gap-1.5">
-          <label htmlFor="site-city" className={labelClass}>
-            Cidade
-          </label>
-          <input
-            id="site-city"
-            type="text"
-            placeholder="Guarapuava"
-            value={values.city}
-            onChange={(e) => set("city")(e.target.value)}
-            aria-invalid={showErrors && !city}
-            className={inputClass}
-          />
-          {showErrors && !city && (
-            <span role="alert" className="text-[11.5px] text-red-300">
-              Informe a cidade.
-            </span>
-          )}
-        </div>
-
-        <div className="grid gap-1.5">
-          <label htmlFor="site-state" className={labelClass}>
-            Estado <span className="normal-case tracking-normal text-[#565270]">(opcional)</span>
-          </label>
-          <input
-            id="site-state"
-            type="text"
-            placeholder="Paraná"
-            value={values.state}
-            onChange={(e) => set("state")(e.target.value)}
-            className={inputClass}
-          />
-        </div>
+        <BrazilStateCity
+          idPrefix="site"
+          state={values.state}
+          city={values.city}
+          onChange={({ state, city }) => setValues((v) => ({ ...v, state, city }))}
+          stateOptional
+          cityError={showErrors && !city ? "Informe a cidade." : ""}
+        />
 
         <button
           type="submit"
