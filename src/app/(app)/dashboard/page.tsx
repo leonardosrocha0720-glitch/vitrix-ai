@@ -1,104 +1,208 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useSales } from "@/lib/useSales";
+import { useGeneratedSites } from "@/lib/useGeneratedSites";
+import { formatCurrency, startOfToday } from "@/lib/sales";
 import {
-  countSales,
-  dailySeries,
-  formatCurrency,
-  periodFilter,
-  startOfToday,
-  sumSales,
-} from "@/lib/sales";
+  RANGE_OPTIONS,
+  currentWindow,
+  inWindow,
+  mockSubscriptions,
+  pctChange,
+  previousWindow,
+  revenueSeries,
+  salesIn,
+  sumAmount,
+  type RangeKey,
+} from "@/lib/dashboardPeriod";
 
-function Sparkline({ points, tone }: { points: number[]; tone: "brand" | "signal" }) {
-  if (points.length < 2 || points.every((p) => p === 0)) {
-    return <span className="h-[26px] w-[72px] shrink-0" aria-hidden />;
-  }
+const iconProps = {
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.7,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  className: "h-[18px] w-[18px]",
+} as const;
 
-  const w = 72;
-  const h = 26;
-  const max = Math.max(...points);
-  const step = w / (points.length - 1);
-  const coords = points.map<[number, number]>((p, i) => [i * step, h - 2 - (p / max) * (h - 5)]);
-
-  const line = coords
-    .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`)
-    .join(" ");
-  const area = `${line} L${w} ${h} L0 ${h} Z`;
-  const [lastX, lastY] = coords[coords.length - 1];
-
-  const stroke = tone === "signal" ? "#22d3a5" : "#c084fc";
-  const fill = tone === "signal" ? "rgba(34,211,165,.14)" : "rgba(139,92,246,.18)";
-
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-      fill="none"
-      aria-hidden
-      className="h-[26px] w-[72px] shrink-0 opacity-90"
-    >
-      <path d={area} fill={fill} />
-      <path d={line} stroke={stroke} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="2.6" fill={stroke} />
+const ICONS = {
+  revenue: (
+    <svg {...iconProps}>
+      <path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
     </svg>
+  ),
+  subs: (
+    <svg {...iconProps}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M18 8v6M15 11h6" />
+    </svg>
+  ),
+  sites: (
+    <svg {...iconProps}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 9h18M7 6.5h.01M10 6.5h.01" />
+    </svg>
+  ),
+  active: (
+    <svg {...iconProps}>
+      <path d="M16 20v-1.5a4 4 0 00-4-4H7a4 4 0 00-4 4V20M9.5 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM21 20v-1.5a4 4 0 00-3-3.9M16 4.2a3.5 3.5 0 010 6.6" />
+    </svg>
+  ),
+};
+
+function Delta({ value }: { value: number | null }) {
+  if (value === null) {
+    return <span className="font-data text-[11px] text-muted">sem comparação</span>;
+  }
+  const positive = value >= 0;
+  return (
+    <span className="inline-flex items-center gap-1.5 font-data text-[11px]">
+      <span
+        className={`rounded-full px-[7px] py-0.5 font-medium ${
+          positive ? "bg-signal/10 text-signal" : "bg-red-500/10 text-red-400"
+        }`}
+      >
+        {positive ? "+" : ""}
+        {value.toFixed(0)}%
+      </span>
+      <span className="text-muted">vs período anterior</span>
+    </span>
   );
 }
 
 function StatCard({
   label,
   value,
-  count,
-  lead = false,
-  series,
-  tone = "brand",
+  delta,
   icon,
+  lead = false,
 }: {
   label: string;
   value: string;
-  count: number;
-  lead?: boolean;
-  series?: number[];
-  tone?: "brand" | "signal";
+  delta: number | null;
   icon: React.ReactNode;
+  lead?: boolean;
 }) {
   return (
     <div
-      className={`relative grid gap-2.5 overflow-hidden rounded-[14px] border bg-surface px-4 py-[15px] ${
+      className={`relative grid gap-3 overflow-hidden rounded-2xl border bg-surface p-5 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.8)] ${
         lead ? "border-brand/[0.34]" : "border-line"
       }`}
     >
-      {lead && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_120%_at_100%_0%,rgba(139,92,246,0.16),transparent_62%)]"
-        />
-      )}
-      <p className="relative flex items-center gap-[7px] font-data text-[9.5px] uppercase tracking-[0.14em] text-muted">
-        <span className="opacity-70">{icon}</span>
-        {label}
-      </p>
-      <p className="relative font-data text-[25px] font-bold leading-none tracking-[-0.025em] tabular-nums text-ink">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_120%_at_100%_0%,rgba(139,92,246,0.10),transparent_62%)]"
+      />
+      <div className="relative flex items-center justify-between gap-3">
+        <p className="font-data text-[10px] uppercase tracking-[0.14em] text-muted">{label}</p>
+        <span className="grid h-9 w-9 place-items-center rounded-xl border border-brand/25 bg-brand/10 text-brand-2">
+          {icon}
+        </span>
+      </div>
+      <p className="relative font-data text-[28px] font-bold leading-none tracking-[-0.025em] tabular-nums text-ink">
         {value}
       </p>
-      <div className="relative flex items-end justify-between gap-2.5">
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 font-data text-[10.5px] font-medium ${
-            count > 0 ? "bg-signal/10 text-signal" : "bg-white/[0.04] text-muted"
-          }`}
-        >
-          {count > 0 ? "▲" : "—"} {count} {count === 1 ? "site" : "sites"}
-        </span>
-        {series ? <Sparkline points={series} tone={tone} /> : <span className="h-[26px]" />}
+      <div className="relative">
+        <Delta value={delta} />
       </div>
+    </div>
+  );
+}
+
+function PeriodFilter({ value, onChange }: { value: RangeKey; onChange: (r: RangeKey) => void }) {
+  return (
+    <div role="group" aria-label="Período" className="flex flex-wrap gap-1.5 rounded-2xl border border-line bg-surface p-1.5">
+      {RANGE_OPTIONS.map((o) => {
+        const active = o.key === value;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(o.key)}
+            className={`rounded-xl px-3.5 py-2 font-display text-[13px] font-semibold transition-colors ${
+              active
+                ? "bg-gradient-to-br from-brand-2 via-brand to-[#6d28d9] text-white shadow-[0_8px_18px_-10px_rgba(139,92,246,1)]"
+                : "text-muted hover:bg-white/[0.04] hover:text-ink"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function RevenueChart({ data }: { data: { label: string; revenue: number }[] }) {
+  return (
+    <div className="h-[280px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.45} />
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="#231f38" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="label" tick={{ fill: "#84809e", fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={24} />
+          <YAxis
+            tick={{ fill: "#84809e", fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            width={56}
+            tickFormatter={(v: number) => `R$ ${v}`}
+          />
+          <Tooltip
+            cursor={{ stroke: "#c084fc", strokeOpacity: 0.3 }}
+            contentStyle={{
+              background: "#151521",
+              border: "1px solid #231f38",
+              borderRadius: 12,
+              fontSize: 12,
+              color: "#f4f3ff",
+            }}
+            labelStyle={{ color: "#84809e" }}
+            formatter={(v) => [formatCurrency(Number(v)), "Receita"]}
+          />
+          <Area type="monotone" dataKey="revenue" stroke="#c084fc" strokeWidth={2} fill="url(#revFill)" />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }
 
 export default function DashboardPage() {
   const { sales, loading } = useSales();
-  const today = startOfToday();
+  const { dates: siteDates } = useGeneratedSites();
+  const [range, setRange] = useState<RangeKey>("30d");
+
+  const m = useMemo(() => {
+    const today = startOfToday();
+    const cur = currentWindow(range, today);
+    const prev = previousWindow(range, today);
+
+    const revenue = sumAmount(salesIn(sales, cur));
+    const revenuePrev = prev ? sumAmount(salesIn(sales, prev)) : null;
+    const sitesCount = siteDates.filter((d) => inWindow(d, cur)).length;
+    const sitesPrev = prev ? siteDates.filter((d) => inWindow(d, prev)).length : null;
+    const subs = mockSubscriptions(range, today);
+
+    return {
+      revenue,
+      revenueDelta: pctChange(revenue, revenuePrev),
+      sitesCount,
+      sitesDelta: pctChange(sitesCount, sitesPrev),
+      subs,
+      subsDelta: pctChange(subs.created, subs.createdPrev),
+      series: revenueSeries(sales, cur),
+    };
+  }, [sales, siteDates, range]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -116,56 +220,21 @@ export default function DashboardPage() {
       </header>
 
       <div className="mx-auto grid w-full max-w-6xl gap-[22px] px-5 pb-14 pt-6 lg:px-6">
+        <PeriodFilter value={range} onChange={setRange} />
+
         <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            lead
-            label="Hoje"
-            value={formatCurrency(sumSales(sales, periodFilter("hoje", today)))}
-            count={countSales(sales, periodFilter("hoje", today))}
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" className="h-[13px] w-[13px]">
-                <path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-              </svg>
-            }
-          />
-          <StatCard
-            label="Ontem"
-            value={formatCurrency(sumSales(sales, periodFilter("ontem", today)))}
-            count={countSales(sales, periodFilter("ontem", today))}
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" className="h-[13px] w-[13px]">
-                <rect x="3" y="5" width="18" height="16" rx="2.5" />
-                <path d="M3 10h18M8 3v4M16 3v4" />
-              </svg>
-            }
-          />
-          <StatCard
-            label="Últimos 7 dias"
-            value={formatCurrency(sumSales(sales, periodFilter("7d", today)))}
-            count={countSales(sales, periodFilter("7d", today))}
-            series={dailySeries(sales, 7, today)}
-            tone="signal"
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-[13px] w-[13px]">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3.5 2" />
-              </svg>
-            }
-          />
-          <StatCard
-            label="Últimos 30 dias"
-            value={formatCurrency(sumSales(sales, periodFilter("30d", today)))}
-            count={countSales(sales, periodFilter("30d", today))}
-            series={dailySeries(sales, 30, today)}
-            tone="signal"
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-[13px] w-[13px]">
-                <path d="M3 17l6-6 4 4 8-8" />
-                <path d="M21 7v5h-5" />
-              </svg>
-            }
-          />
+          <StatCard lead label="Receita total" value={formatCurrency(m.revenue)} delta={m.revenueDelta} icon={ICONS.revenue} />
+          {/* TODO: filtrar por período no Supabase (assinaturas ainda mockadas) */}
+          <StatCard label="Novas assinaturas" value={String(m.subs.created)} delta={m.subsDelta} icon={ICONS.subs} />
+          <StatCard label="Sites gerados" value={String(m.sitesCount)} delta={m.sitesDelta} icon={ICONS.sites} />
+          {/* TODO: filtrar por período no Supabase (assinantes ativos mockado) */}
+          <StatCard label="Assinantes ativos" value={String(m.subs.active)} delta={null} icon={ICONS.active} />
         </div>
+
+        <section className="rounded-2xl border border-line bg-surface p-5 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.8)]">
+          <h2 className="mb-4 font-display text-[15px] font-bold text-ink">Receita no período</h2>
+          <RevenueChart data={m.series} />
+        </section>
 
         {!loading && sales.length === 0 && (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface/40 px-6 py-12 text-center">
