@@ -121,9 +121,12 @@ export function revenueSeries(sales: Sale[], w: Window): RevenuePoint[] {
  */
 export function mockSubscriptions(range: RangeKey, today = startOfToday()) {
   const days = rangeDays(range);
-  const baseline = 128;
-  if (!days) return { created: 214, createdPrev: null, active: baseline };
+  const active = 128 - (today.getDate() % 3);
+  if (!days) return { created: 214, createdPrev: null, active, activeAtStart: null };
   const created = Math.max(1, Math.round(days * 0.7));
   const createdPrev = Math.max(1, Math.round(days * 0.62));
-  return { created, createdPrev, active: baseline - (today.getDate() % 3) };
+  // "Ativos" é um retrato de agora; o que muda com o período é o saldo
+  // (novas − cancelamentos) desde o início dele.
+  const net = created - Math.round(created * 0.25);
+  return { created, createdPrev, active, activeAtStart: active - net };
 }

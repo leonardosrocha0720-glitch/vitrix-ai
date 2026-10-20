@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useSales } from "@/lib/useSales";
 import { useGeneratedSites } from "@/lib/useGeneratedSites";
 import { formatCurrency, startOfToday } from "@/lib/sales";
@@ -138,40 +138,60 @@ function PeriodFilter({ value, onChange }: { value: RangeKey; onChange: (r: Rang
   );
 }
 
+const AXIS_TICK = { fill: "#84809e", fontSize: 11 };
+const TOOLTIP_STYLE = {
+  background: "#151521",
+  border: "1px solid #231f38",
+  borderRadius: 12,
+  fontSize: 12,
+  color: "#f4f3ff",
+};
+
 function RevenueChart({ data }: { data: { label: string; revenue: number }[] }) {
+  // Um ponto só (Hoje) não desenha linha nem área; poucas barras leem melhor.
+  const useBars = data.length <= 7;
+  const common = { data, margin: { top: 8, right: 8, left: 0, bottom: 0 } };
+  const axes = (
+    <>
+      <CartesianGrid stroke="#231f38" strokeDasharray="3 3" vertical={false} />
+      <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} minTickGap={24} />
+      <YAxis
+        tick={AXIS_TICK}
+        tickLine={false}
+        axisLine={false}
+        width={56}
+        allowDecimals={false}
+        tickFormatter={(v: number) => `R$ ${v}`}
+      />
+      <Tooltip
+        cursor={{ stroke: "#c084fc", strokeOpacity: 0.3, fill: "rgba(139,92,246,0.08)" }}
+        contentStyle={TOOLTIP_STYLE}
+        labelStyle={{ color: "#84809e" }}
+        formatter={(v) => [formatCurrency(Number(v)), "Receita"]}
+      />
+    </>
+  );
+
   return (
     <div className="h-[280px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.45} />
-              <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke="#231f38" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" tick={{ fill: "#84809e", fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={24} />
-          <YAxis
-            tick={{ fill: "#84809e", fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            width={56}
-            tickFormatter={(v: number) => `R$ ${v}`}
-          />
-          <Tooltip
-            cursor={{ stroke: "#c084fc", strokeOpacity: 0.3 }}
-            contentStyle={{
-              background: "#151521",
-              border: "1px solid #231f38",
-              borderRadius: 12,
-              fontSize: 12,
-              color: "#f4f3ff",
-            }}
-            labelStyle={{ color: "#84809e" }}
-            formatter={(v) => [formatCurrency(Number(v)), "Receita"]}
-          />
-          <Area type="monotone" dataKey="revenue" stroke="#c084fc" strokeWidth={2} fill="url(#revFill)" />
-        </AreaChart>
+        {useBars ? (
+          <BarChart {...common}>
+            {axes}
+            <Bar dataKey="revenue" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={56} />
+          </BarChart>
+        ) : (
+          <AreaChart {...common}>
+            <defs>
+              <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.45} />
+                <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            {axes}
+            <Area type="monotone" dataKey="revenue" stroke="#c084fc" strokeWidth={2} fill="url(#revFill)" />
+          </AreaChart>
+        )}
       </ResponsiveContainer>
     </div>
   );
@@ -179,7 +199,7 @@ function RevenueChart({ data }: { data: { label: string; revenue: number }[] }) 
 
 export default function DashboardPage() {
   const { sales, loading } = useSales();
-  const { dates: siteDates } = useGeneratedSites();
+  const { dates: siteDates, loading: sitesLoading } = useGeneratedSites();
   const [range, setRange] = useState<RangeKey>("30d");
 
   const m = useMemo(() => {
@@ -200,6 +220,7 @@ export default function DashboardPage() {
       sitesDelta: pctChange(sitesCount, sitesPrev),
       subs,
       subsDelta: pctChange(subs.created, subs.createdPrev),
+      activeDelta: pctChange(subs.active, subs.activeAtStart),
       series: revenueSeries(sales, cur),
     };
   }, [sales, siteDates, range]);
@@ -226,9 +247,15 @@ export default function DashboardPage() {
           <StatCard lead label="Receita total" value={formatCurrency(m.revenue)} delta={m.revenueDelta} icon={ICONS.revenue} />
           {/* TODO: filtrar por período no Supabase (assinaturas ainda mockadas) */}
           <StatCard label="Novas assinaturas" value={String(m.subs.created)} delta={m.subsDelta} icon={ICONS.subs} />
-          <StatCard label="Sites gerados" value={String(m.sitesCount)} delta={m.sitesDelta} icon={ICONS.sites} />
+          {/* generated_sites só é gravada por /api/generate-site (fluxo desativado); sem registros não há o que filtrar. */}
+          <StatCard
+            label="Sites gerados"
+            value={sitesLoading || siteDates.length > 0 ? String(m.sitesCount) : "—"}
+            delta={siteDates.length > 0 ? m.sitesDelta : null}
+            icon={ICONS.sites}
+          />
           {/* TODO: filtrar por período no Supabase (assinantes ativos mockado) */}
-          <StatCard label="Assinantes ativos" value={String(m.subs.active)} delta={null} icon={ICONS.active} />
+          <StatCard label="Assinantes ativos" value={String(m.subs.active)} delta={m.activeDelta} icon={ICONS.active} />
         </div>
 
         <section className="rounded-2xl border border-line bg-surface p-5 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.8)]">
