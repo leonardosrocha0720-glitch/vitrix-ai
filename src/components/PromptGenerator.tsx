@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import { PALETTES } from "@/lib/palettes";
 import { buildSitePrompt } from "@/lib/buildSitePrompt";
 import type { TipoCTA } from "@/types/business";
@@ -127,6 +128,7 @@ export default function PromptGenerator({
   const [prompt, setPrompt] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const resultRef = useRef<HTMLElement>(null);
+  const logged = useRef(false);
 
   const palette = PALETTES.find((p) => p.id === paletteId) ?? null;
   const outreachMessages = buildOutreachMessages(nome, cidade);
@@ -139,9 +141,34 @@ export default function PromptGenerator({
     return () => clearTimeout(t);
   }, [copied]);
 
+  // Alimenta o card "Sites gerados" da dashboard. Uma vez por visita: refazer o
+  // prompt para o mesmo negócio (ajustando campos) não conta como outro site.
+  const logGeneration = async (paletteName: string) => {
+    if (logged.current) return;
+    logged.current = true;
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("sem sessão");
+      const { error } = await supabase.from("generated_sites").insert({
+        user_id: user.id,
+        business_name: nome,
+        niche: nicho || null,
+        city: cidade || null,
+        palette: paletteName,
+      });
+      if (error) throw error;
+    } catch {
+      logged.current = false; // tenta de novo na próxima geração
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canGenerate || !palette) return;
+    void logGeneration(palette.name);
     setPrompt(
       buildSitePrompt({
         nome,

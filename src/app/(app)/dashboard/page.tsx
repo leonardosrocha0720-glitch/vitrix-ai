@@ -247,7 +247,7 @@ export default function DashboardPage() {
           <StatCard lead label="Receita total" value={formatCurrency(m.revenue)} delta={m.revenueDelta} icon={ICONS.revenue} />
           {/* TODO: filtrar por período no Supabase (assinaturas ainda mockadas) */}
           <StatCard label="Novas assinaturas" value={String(m.subs.created)} delta={m.subsDelta} icon={ICONS.subs} />
-          {/* generated_sites só é gravada por /api/generate-site (fluxo desativado); sem registros não há o que filtrar. */}
+          {/* generated_sites é gravada pelo PromptGenerator (/gerar-prompt); sem registros não há o que filtrar. */}
           <StatCard
             label="Sites gerados"
             value={sitesLoading || siteDates.length > 0 ? String(m.sitesCount) : "—"}
