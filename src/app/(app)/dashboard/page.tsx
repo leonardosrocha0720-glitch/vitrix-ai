@@ -4,13 +4,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useSales } from "@/lib/useSales";
-import { useGeneratedSites } from "@/lib/useGeneratedSites";
 import { formatCurrency, startOfToday } from "@/lib/sales";
 import {
   RANGE_OPTIONS,
   currentWindow,
-  inWindow,
-  mockSubscriptions,
   pctChange,
   previousWindow,
   revenueSeries,
@@ -199,31 +196,33 @@ function RevenueChart({ data }: { data: { label: string; revenue: number }[] }) 
 
 export default function DashboardPage() {
   const { sales, loading } = useSales();
-  const { dates: siteDates, loading: sitesLoading } = useGeneratedSites();
   const [range, setRange] = useState<RangeKey>("30d");
 
+  // Tudo sai de `sales` (Histórico de Vendas): cada registro = uma venda = um site.
   const m = useMemo(() => {
     const today = startOfToday();
     const cur = currentWindow(range, today);
     const prev = previousWindow(range, today);
 
-    const revenue = sumAmount(salesIn(sales, cur));
-    const revenuePrev = prev ? sumAmount(salesIn(sales, prev)) : null;
-    const sitesCount = siteDates.filter((d) => inWindow(d, cur)).length;
-    const sitesPrev = prev ? siteDates.filter((d) => inWindow(d, prev)).length : null;
-    const subs = mockSubscriptions(range, today);
+    const inCur = salesIn(sales, cur);
+    const inPrev = prev ? salesIn(sales, prev) : null;
+    const revenue = sumAmount(inCur);
+    const count = inCur.length;
+
+    // Ativos = vendas acumuladas até hoje; a variação compara com o início do período.
+    const active = sales.length;
+    const activeAtStart = cur.start ? salesIn(sales, { start: null, end: cur.start }).length : null;
 
     return {
       revenue,
-      revenueDelta: pctChange(revenue, revenuePrev),
-      sitesCount,
-      sitesDelta: pctChange(sitesCount, sitesPrev),
-      subs,
-      subsDelta: pctChange(subs.created, subs.createdPrev),
-      activeDelta: pctChange(subs.active, subs.activeAtStart),
+      revenueDelta: pctChange(revenue, inPrev ? sumAmount(inPrev) : null),
+      count,
+      countDelta: pctChange(count, inPrev ? inPrev.length : null),
+      active,
+      activeDelta: pctChange(active, activeAtStart),
       series: revenueSeries(sales, cur),
     };
-  }, [sales, siteDates, range]);
+  }, [sales, range]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -245,17 +244,9 @@ export default function DashboardPage() {
 
         <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard lead label="Receita total" value={formatCurrency(m.revenue)} delta={m.revenueDelta} icon={ICONS.revenue} />
-          {/* TODO: filtrar por período no Supabase (assinaturas ainda mockadas) */}
-          <StatCard label="Novas assinaturas" value={String(m.subs.created)} delta={m.subsDelta} icon={ICONS.subs} />
-          {/* generated_sites é gravada pelo PromptGenerator (/gerar-prompt); sem registros não há o que filtrar. */}
-          <StatCard
-            label="Sites gerados"
-            value={sitesLoading || siteDates.length > 0 ? String(m.sitesCount) : "—"}
-            delta={siteDates.length > 0 ? m.sitesDelta : null}
-            icon={ICONS.sites}
-          />
-          {/* TODO: filtrar por período no Supabase (assinantes ativos mockado) */}
-          <StatCard label="Assinantes ativos" value={String(m.subs.active)} delta={m.activeDelta} icon={ICONS.active} />
+          <StatCard label="Novas assinaturas" value={String(m.count)} delta={m.countDelta} icon={ICONS.subs} />
+          <StatCard label="Sites gerados" value={String(m.count)} delta={m.countDelta} icon={ICONS.sites} />
+          <StatCard label="Assinantes ativos" value={String(m.active)} delta={m.activeDelta} icon={ICONS.active} />
         </div>
 
         <section className="rounded-2xl border border-line bg-surface p-5 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.8)]">
