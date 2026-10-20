@@ -42,8 +42,8 @@ function getCreditsByPlan(offerName: string, offerCode: string, amount: number):
   }
 
   // 3) Valor pago. Acima do limiar tratamos como vitalício (hoje vendido como Anual).
-  // O padrão fica entre o Mensal (R$ 67) e o Anual à vista (R$ 149,90).
-  const limiar = parseInt(process.env.APLIFAY_VALOR_MIN_VITALICIO ?? "100", 10);
+  // O padrão fica entre o Mensal (R$ 97) e o Anual à vista (R$ 149,90).
+  const limiar = parseInt(process.env.APLIFAY_VALOR_MIN_VITALICIO ?? "120", 10);
   if (amount > 0) {
     const plano = amount >= limiar ? "vitalício" : "mensal";
     console.warn(
