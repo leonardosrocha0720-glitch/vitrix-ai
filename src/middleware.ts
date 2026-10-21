@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rotas públicas: login, register, callback, /auth/confirm (links de e-mail),
-  // /recuperar-senha, /landing.html (página de vendas), /s/* (sites publicados),
+  // /recuperar-senha, /definir-senha (o token chega no fragmento, sem sessão ainda), /landing.html (página de vendas), /s/* (sites publicados),
   // /members (área de membros, aberta a quem tiver o link) e /api/webhook/* —
   // webhooks vêm de servidores externos, sem sessão Supabase.
   // Esses endpoints fazem a própria autenticação via secret (APLIFAY_WEBHOOK_SECRET).
@@ -39,6 +39,7 @@ export async function middleware(request: NextRequest) {
     "/auth/callback",
     "/auth/confirm",
     "/recuperar-senha",
+    "/definir-senha",
     "/landing.html",
     "/members",
     "/api/webhook/",
