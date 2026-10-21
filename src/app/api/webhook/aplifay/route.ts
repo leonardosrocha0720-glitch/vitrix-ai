@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
       // venceu): reenvia o acesso como redefinição de senha.
       if (!existingUser.last_sign_in_at) {
         const { error: resendError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: accessRedirectUrl(),
+          redirectTo: "https://vitrixai.site/definir-senha",
         });
         if (resendError) {
           console.warn(`[Aplifay Webhook] Falha ao reenviar acesso para ${email}:`, resendError.message);
